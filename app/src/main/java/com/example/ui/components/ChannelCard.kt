@@ -32,7 +32,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -44,6 +46,14 @@ import coil.compose.AsyncImage
 import com.example.data.local.ProgramEntity
 import com.example.data.model.Channel
 import com.example.ui.theme.CyanNeon
+import com.example.ui.theme.SkeuoButton
+import com.example.ui.theme.SkeuoJewelLed
+import com.example.ui.theme.SkeuoRubyLed
+import com.example.ui.theme.SkeuoEmeraldLed
+import com.example.ui.theme.SkeuoAmberGlow
+import com.example.ui.theme.SkeuoScrew
+import com.example.ui.theme.skeuomorphicPanel
+import com.example.ui.theme.skeuomorphicWell
 
 @Composable
 fun ChannelCard(
@@ -59,23 +69,26 @@ fun ChannelCard(
 ) {
     val now = System.currentTimeMillis()
 
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-            }
-        ),
-        border = if (isSelected) {
-            androidx.compose.foundation.BorderStroke(1.5.dp, CyanNeon)
-        } else {
-            androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
-        },
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .skeuomorphicPanel(
+                cornerRadius = 14.dp,
+                elevation = if (isSelected) 8.dp else 4.dp,
+                highlightAlpha = if (isSelected) 0.5f else 0.25f,
+                shadowAlpha = 0.9f
+            )
+            .then(
+                if (isSelected) {
+                    Modifier.border(
+                        1.5.dp,
+                        Brush.verticalGradient(
+                            listOf(CyanNeon, CyanNeon.copy(alpha = 0.35f), Color.Transparent)
+                        ),
+                        RoundedCornerShape(14.dp)
+                    )
+                } else Modifier
+            )
             .clickable(onClick = onSelect)
             .testTag("channel_card_${channel.id}")
     ) {
@@ -88,12 +101,11 @@ fun ChannelCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Channel Logo / Icon
+                // Channel Logo / Icon in debossed well
                 Box(
                     modifier = Modifier
                         .size(52.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.surface),
+                        .skeuomorphicWell(cornerRadius = 10.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     if (!channel.logoUrl.isNullOrEmpty()) {
@@ -102,7 +114,7 @@ fun ChannelCard(
                             contentDescription = channel.name,
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(42.dp)
                                 .padding(4.dp)
                         )
                     } else {
@@ -169,57 +181,21 @@ fun ChannelCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        // Live / Broken Status Pill
+                        // Live / Broken Status with SkeuoJewelLed
                         if (isBroken) {
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = Color(0xFFEF4444).copy(alpha = 0.15f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f))
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFFEF4444))
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "OFFLINE",
-                                        color = Color(0xFFEF4444),
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
+                            SkeuoJewelLed(
+                                isActive = true,
+                                color = SkeuoRubyLed,
+                                label = "OFFLINE",
+                                size = 8.dp
+                            )
                         } else {
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = Color(0xFF10B981).copy(alpha = 0.15f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.5f))
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF10B981))
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "LIVE",
-                                        color = Color(0xFF10B981),
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
+                            SkeuoJewelLed(
+                                isActive = isLive,
+                                color = SkeuoEmeraldLed,
+                                label = "LIVE",
+                                size = 8.dp
+                            )
                         }
 
                         // Genre badge
@@ -260,11 +236,11 @@ fun ChannelCard(
                     }
                 }
 
-                // Direct Play Button (Requested by user)
-                Surface(
+                // Direct Play Button (Tactile SkeuoButton)
+                SkeuoButton(
                     onClick = onSelect,
-                    shape = RoundedCornerShape(8.dp),
-                    color = CyanNeon,
+                    isAccent = true,
+                    cornerRadius = 8.dp,
                     modifier = Modifier
                         .padding(end = 4.dp)
                         .testTag("play_button_${channel.id}")

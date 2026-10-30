@@ -104,6 +104,16 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.example.ui.theme.CyanNeon
 import com.example.ui.theme.LiveRed
+import com.example.ui.theme.SkeuoButton
+import com.example.ui.theme.SkeuoJewelLed
+import com.example.ui.theme.SkeuoRubyLed
+import com.example.ui.theme.SkeuoEmeraldLed
+import com.example.ui.theme.SkeuoPhosphorCyan
+import com.example.ui.theme.SkeuoScrew
+import com.example.ui.theme.tvScreenBezel
+import com.example.ui.theme.skeuomorphicWell
+import com.example.ui.theme.skeuomorphicPanel
+import androidx.compose.ui.platform.LocalConfiguration
 import okhttp3.OkHttpClient
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
@@ -203,6 +213,22 @@ fun VideoPlayerView(
     var accumulatedDragY by remember { mutableStateOf(0f) }
 
     val activity = context as? Activity
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    // Screen timeout prevention during landscape playback or fullscreen
+    DisposableEffect(isLandscape, isFullscreen, isPlaying) {
+        val shouldKeepScreenOn = (isLandscape || isFullscreen) && isPlaying
+        if (shouldKeepScreenOn) {
+            activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager }
     val maxVolume = remember { audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15 }
 
@@ -252,9 +278,13 @@ fun VideoPlayerView(
         val okHttpDataSourceFactory = OkHttpDataSource.Factory(playerOkHttpClient)
             .setUserAgent(httpUserAgent ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 StreamPulseTV/1.0")
 
+        val defaultHeaders = mutableMapOf<String, String>(
+            "Accept" to "*/*"
+        )
         if (!httpReferrer.isNullOrBlank()) {
-            okHttpDataSourceFactory.setDefaultRequestProperties(mapOf("Referer" to httpReferrer))
+            defaultHeaders["Referer"] = httpReferrer
         }
+        okHttpDataSourceFactory.setDefaultRequestProperties(defaultHeaders)
 
         val defaultDataSourceFactory = DefaultDataSource.Factory(context, okHttpDataSourceFactory)
         val mediaSourceFactory = DefaultMediaSourceFactory(defaultDataSourceFactory)
@@ -300,8 +330,13 @@ fun VideoPlayerView(
                     return
                 }
 
-                // If error is container/format parsing and we haven't tried fallback
-                if (streamFallbackMode == 0 && !streamUrl.isNullOrBlank()) {
+                // If error is specifically container/format parsing or manifest parsing and we haven't tried fallback
+                val isFormatError = error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED ||
+                    error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED ||
+                    error.errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED ||
+                    error.errorCode == PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED
+
+                if (streamFallbackMode == 0 && !streamUrl.isNullOrBlank() && isFormatError) {
                     streamFallbackMode = 1
                     try {
                         val fallbackItem = createUniversalMediaItem(streamUrl, fallbackMode = 1)
@@ -389,6 +424,11 @@ fun VideoPlayerView(
 
     Box(
         modifier = modifier
+            .then(
+                if (!isFullscreen && !isPipMode) {
+                    Modifier.tvScreenBezel(cornerRadius = 14.dp)
+                } else Modifier
+            )
             .background(Color.Black)
             .pointerInput(isScreenLocked, isPipMode) {
                 if (isScreenLocked) {
@@ -536,6 +576,7 @@ fun VideoPlayerView(
                     PlayerView(ctx).apply {
                         player = exoPlayer
                         useController = false
+                        keepScreenOn = true
                         layoutParams = FrameLayout.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
@@ -609,7 +650,10 @@ fun VideoPlayerView(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Button(
-                            onClick = { retryTrigger++ },
+                            onClick = {
+                                streamFallbackMode = 0
+                                retryTrigger++
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = CyanNeon),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.testTag("stream_retry_button")
@@ -676,29 +720,17 @@ fun VideoPlayerView(
                         .align(Alignment.TopCenter),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // LIVE badge
-                    Surface(
-                        color = LiveRed,
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.padding(end = 8.dp)
+                    // ON AIR jewel indicator
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 10.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(Color.White, CircleShape)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "LIVE",
-                                color = Color.White,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        SkeuoJewelLed(
+                            isActive = isPlaying,
+                            color = SkeuoRubyLed,
+                            label = "ON AIR",
+                            size = 11.dp
+                        )
                     }
 
                     // Title & info
@@ -808,102 +840,88 @@ fun VideoPlayerView(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (onPreviousChannel != null) {
-                        Surface(
+                        SkeuoButton(
                             onClick = onPreviousChannel,
-                            shape = CircleShape,
-                            color = Color.Black.copy(alpha = 0.6f),
+                            cornerRadius = 24.dp,
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(46.dp)
                                 .testTag("player_prev_channel_button")
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.SkipPrevious,
-                                    contentDescription = "Previous Channel",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(26.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.SkipPrevious,
+                                contentDescription = "Previous Channel",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
 
-                    Surface(
+                    SkeuoButton(
                         onClick = {
                             val target = (exoPlayer.currentPosition - 10_000L).coerceAtLeast(0L)
                             exoPlayer.seekTo(target)
                         },
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.6f),
+                        cornerRadius = 24.dp,
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(46.dp)
                             .testTag("player_rewind_10_button")
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.FastRewind,
-                                contentDescription = "Rewind 10 seconds",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.FastRewind,
+                            contentDescription = "Rewind 10 seconds",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
 
-                    Surface(
+                    SkeuoButton(
                         onClick = onTogglePlayPause,
-                        shape = CircleShape,
-                        color = CyanNeon,
+                        isAccent = true,
+                        cornerRadius = 30.dp,
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(62.dp)
                             .testTag("player_play_pause_button")
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = Color(0xFF00363D),
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            tint = Color(0xFF00363D),
+                            modifier = Modifier.size(36.dp)
+                        )
                     }
 
-                    Surface(
+                    SkeuoButton(
                         onClick = {
                             val target = exoPlayer.currentPosition + 10_000L
                             exoPlayer.seekTo(target)
                         },
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.6f),
+                        cornerRadius = 24.dp,
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(46.dp)
                             .testTag("player_forward_10_button")
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.FastForward,
-                                contentDescription = "Forward 10 seconds",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.FastForward,
+                            contentDescription = "Forward 10 seconds",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
 
                     if (onNextChannel != null) {
-                        Surface(
+                        SkeuoButton(
                             onClick = onNextChannel,
-                            shape = CircleShape,
-                            color = Color.Black.copy(alpha = 0.6f),
+                            cornerRadius = 24.dp,
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(46.dp)
                                 .testTag("player_next_channel_button")
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.SkipNext,
-                                    contentDescription = "Next Channel",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(26.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.SkipNext,
+                                contentDescription = "Next Channel",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 }
@@ -981,10 +999,9 @@ fun VideoPlayerView(
                         // Left: Quality & Aspect Ratio Pickers
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             // Quality picker pill
-                            Surface(
+                            SkeuoButton(
                                 onClick = { showQualityDialog = true },
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color.White.copy(alpha = 0.2f),
+                                cornerRadius = 8.dp,
                                 modifier = Modifier.testTag("player_quality_pill")
                             ) {
                                 Row(
@@ -1002,7 +1019,7 @@ fun VideoPlayerView(
                                         text = playbackQuality.label,
                                         color = Color.White,
                                         fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
@@ -1010,10 +1027,9 @@ fun VideoPlayerView(
                             Spacer(modifier = Modifier.width(8.dp))
 
                             // Aspect ratio picker pill
-                            Surface(
+                            SkeuoButton(
                                 onClick = { showAspectRatioDialog = true },
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color.White.copy(alpha = 0.2f),
+                                cornerRadius = 8.dp,
                                 modifier = Modifier.testTag("player_aspect_ratio_pill")
                             ) {
                                 Row(
@@ -1030,11 +1046,11 @@ fun VideoPlayerView(
                                     Text(
                                         text = aspectRatioMode.label,
                                         color = Color.White,
-                                        fontSize = 11.sp
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
-
                         }
 
                         // Right: Subtitles and Fullscreen
@@ -1451,8 +1467,12 @@ private fun createUniversalMediaItem(url: String, fallbackMode: Int = 0): MediaI
             }
         }
         1 -> {
-            // Fallback 1: Try MPEG-TS format
-            builder.setMimeType(MimeTypes.VIDEO_MP2T)
+            // Fallback 1: Keep HLS for m3u8, or try MPEG-TS if not explicitly m3u8
+            if (lower.contains(".m3u8") || lower.contains("m3u8")) {
+                builder.setMimeType(MimeTypes.APPLICATION_M3U8)
+            } else if (lower.contains(".ts")) {
+                builder.setMimeType(MimeTypes.VIDEO_MP2T)
+            }
         }
         2 -> {
             // Fallback 2: Sniff without explicit MIME type

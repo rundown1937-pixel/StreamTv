@@ -64,6 +64,15 @@ import com.example.data.model.ChannelGenre
 import com.example.ui.components.ChannelCard
 import com.example.ui.components.VideoPlayerView
 import com.example.ui.theme.CyanNeon
+import com.example.ui.theme.SkeuoScrew
+import com.example.ui.theme.SkeuoJewelLed
+import com.example.ui.theme.SkeuoRubyLed
+import com.example.ui.theme.SkeuoEmeraldLed
+import com.example.ui.theme.SkeuoPhosphorCyan
+import com.example.ui.theme.SkeuoButton
+import com.example.ui.theme.skeuomorphicPanel
+import com.example.ui.theme.skeuomorphicWell
+import com.example.ui.theme.tvScreenBezel
 import com.example.ui.viewmodel.ScreenTab
 import com.example.ui.viewmodel.TVViewModel
 
@@ -232,20 +241,17 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                 }
 
-                // Full Screen Search Trigger Bar
-                Surface(
-                    onClick = { viewModel.openFullScreenSearch() },
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, CyanNeon.copy(alpha = 0.45f)),
+                // Full Screen Search Trigger Bar (Recessed Skeuomorphic Well)
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .skeuomorphicWell(cornerRadius = 12.dp)
+                        .clickable { viewModel.openFullScreenSearch() }
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                         .testTag("home_search_bar")
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 13.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -263,17 +269,16 @@ fun HomeScreen(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = CyanNeon.copy(alpha = 0.15f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, CyanNeon.copy(alpha = 0.3f))
+                        SkeuoButton(
+                            onClick = { viewModel.openFullScreenSearch() },
+                            cornerRadius = 6.dp
                         ) {
                             Text(
-                                text = "Full Screen 🔍",
+                                text = "TUNER 🔍",
                                 color = CyanNeon,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
@@ -351,23 +356,31 @@ fun HomeScreen(
                 ) {
                     items(genres) { genreName ->
                         val isSelected = selectedGenre == genreName
-                        FilterChip(
-                            selected = isSelected,
+                        SkeuoButton(
                             onClick = { viewModel.selectGenre(genreName) },
-                            label = {
+                            isActive = isSelected,
+                            isAccent = isSelected,
+                            cornerRadius = 8.dp,
+                            modifier = Modifier.testTag("genre_chip_$genreName")
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                            ) {
+                                SkeuoJewelLed(
+                                    isActive = isSelected,
+                                    color = if (isSelected) SkeuoPhosphorCyan else Color(0xFF64748B),
+                                    size = 6.dp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = genreName,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) Color(0xFF00363D) else MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 12.sp
                                 )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = CyanNeon,
-                                selectedLabelColor = Color(0xFF00363D),
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                                labelColor = MaterialTheme.colorScheme.onSurface
-                            ),
-                            modifier = Modifier.testTag("genre_chip_$genreName")
-                        )
+                            }
+                        }
                     }
                 }
             }

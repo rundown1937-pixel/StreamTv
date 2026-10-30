@@ -560,7 +560,7 @@ class PlaylistRepository(private val context: Context) {
             Channel(
                 id = "france24_english",
                 name = "France 24 English",
-                streamUrl = "https://static.france24.com/live/F24_EN_HI_HLS/live_tv.m3u8",
+                streamUrl = "https://live.france24.com/hls/live/2037218-b/F24_EN_HI_HLS/master_5000.m3u8",
                 logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/France_24_logo.svg/320px-France_24_logo.svg.png",
                 genre = "News",
                 country = "FR",
@@ -664,7 +664,7 @@ class PlaylistRepository(private val context: Context) {
             Channel(
                 id = "france24_french",
                 name = "France 24 Français",
-                streamUrl = "https://static.france24.com/live/F24_FR_HI_HLS/live_tv.m3u8",
+                streamUrl = "https://live.france24.com/hls/live/2037179-b/F24_FR_HI_HLS/master_5000.m3u8",
                 logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/France_24_logo.svg/320px-France_24_logo.svg.png",
                 genre = "News",
                 country = "FR",
@@ -677,7 +677,7 @@ class PlaylistRepository(private val context: Context) {
             Channel(
                 id = "france24_spanish",
                 name = "France 24 Español",
-                streamUrl = "https://static.france24.com/live/F24_ES_HI_HLS/live_tv.m3u8",
+                streamUrl = "https://live.france24.com/hls/live/2037220-b/F24_ES_HI_HLS/master_5000.m3u8",
                 logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/France_24_logo.svg/320px-France_24_logo.svg.png",
                 genre = "News",
                 country = "ES",
@@ -690,7 +690,7 @@ class PlaylistRepository(private val context: Context) {
             Channel(
                 id = "france24_arabic",
                 name = "France 24 Arabic",
-                streamUrl = "https://static.france24.com/live/F24_AR_HI_HLS/live_tv.m3u8",
+                streamUrl = "https://live.france24.com/hls/live/2037222-b/F24_AR_HI_HLS/master_5000.m3u8",
                 logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/France_24_logo.svg/320px-France_24_logo.svg.png",
                 genre = "News",
                 country = "AE",
@@ -912,7 +912,7 @@ class PlaylistRepository(private val context: Context) {
             Channel(
                 id = "dd_news_india",
                 name = "DD News HD",
-                streamUrl = "https://d2e9569u62u74l.cloudfront.net/out/v1/71a62d08a28646b5a3297bc09e0fbbf4/index.m3u8",
+                streamUrl = "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/0811cd8c37ca4c409d5385a6cd2fa18b/index.m3u8",
                 logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/DD_News_logo.svg/320px-DD_News_logo.svg.png",
                 genre = "News",
                 country = "IN",
@@ -925,7 +925,7 @@ class PlaylistRepository(private val context: Context) {
             Channel(
                 id = "dd_india_hd",
                 name = "DD India HD",
-                streamUrl = "https://d2e9569u62u74l.cloudfront.net/out/v1/71a62d08a28646b5a3297bc09e0fbbf4/index.m3u8",
+                streamUrl = "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/afd2e335b0ba40eb9bdf1096118c6ede/index.m3u8",
                 logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/DD_India_logo.svg/320px-DD_India_logo.svg.png",
                 genre = "News",
                 country = "IN",
@@ -938,7 +938,7 @@ class PlaylistRepository(private val context: Context) {
             Channel(
                 id = "aaj_tak_india",
                 name = "Aaj Tak HD",
-                streamUrl = "https://feeds.intoday.in/aajtak/api/livetv-manifest/index.m3u8",
+                streamUrl = "https://feeds.intoday.in/aajtak/api/aajtakhd/master.m3u8",
                 logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Aaj_tak_logo.png/320px-Aaj_tak_logo.png",
                 genre = "News",
                 country = "IN",
@@ -977,7 +977,7 @@ class PlaylistRepository(private val context: Context) {
             Channel(
                 id = "sansad_tv_india",
                 name = "Sansad TV HD",
-                streamUrl = "https://d2e9569u62u74l.cloudfront.net/out/v1/71a62d08a28646b5a3297bc09e0fbbf4/index.m3u8",
+                streamUrl = "https://d2lk5u59tns74c.cloudfront.net/out/v1/fff8f20221d5456e8922e689d71dedc3/index.m3u8",
                 logoUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Sansad_TV_logo.svg/320px-Sansad_TV_logo.svg.png",
                 genre = "News",
                 country = "IN",

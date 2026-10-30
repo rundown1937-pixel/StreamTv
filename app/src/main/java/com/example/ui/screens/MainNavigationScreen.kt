@@ -70,6 +70,14 @@ import com.example.ui.components.ProfileSwitchDialog
 import com.example.ui.components.SubtitlesAudioDialog
 import com.example.ui.components.VideoPlayerView
 import com.example.ui.theme.CyanNeon
+import com.example.ui.theme.SkeuoScrew
+import com.example.ui.theme.SkeuoJewelLed
+import com.example.ui.theme.SkeuoRubyLed
+import com.example.ui.theme.SkeuoEmeraldLed
+import com.example.ui.theme.SkeuoBrassGold
+import com.example.ui.theme.skeuomorphicPanel
+import com.example.ui.theme.skeuomorphicWell
+import com.example.ui.theme.SkeuoButton
 import com.example.ui.viewmodel.ScreenTab
 import com.example.ui.viewmodel.TVViewModel
 
@@ -245,31 +253,41 @@ fun MainNavigationScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.testTag("app_bar_title")
                             ) {
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = CyanNeon.copy(alpha = 0.2f),
-                                    modifier = Modifier.size(32.dp)
+                                SkeuoScrew(size = 9.dp, rotationDegrees = 45f, modifier = Modifier.padding(end = 8.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .skeuomorphicWell(cornerRadius = 8.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.LiveTv,
-                                            contentDescription = null,
-                                            tint = CyanNeon,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.LiveTv,
+                                        contentDescription = null,
+                                        tint = CyanNeon,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "StreamPulse TV",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Black,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            letterSpacing = 0.5.sp
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        SkeuoJewelLed(
+                                            isActive = isPlaying,
+                                            color = SkeuoRubyLed,
+                                            label = "MASTER",
+                                            size = 7.dp
+                                        )
+                                    }
                                     Text(
-                                        text = "StreamPulse TV",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Black,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                    Text(
-                                        text = "Live IPTV & EPG Schedule",
+                                        text = "Studio Broadcast Console • 12,000+ Channels",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontSize = 10.sp,
                                         color = CyanNeon
@@ -363,9 +381,11 @@ fun MainNavigationScreen(
 
                         if (!isWideScreen) {
                             NavigationBar(
-                                containerColor = MaterialTheme.colorScheme.surface,
+                                containerColor = Color(0xFF141720),
                                 contentColor = CyanNeon,
-                                modifier = Modifier.testTag("bottom_nav_bar")
+                                modifier = Modifier
+                                    .skeuomorphicPanel(cornerRadius = 0.dp, elevation = 12.dp)
+                                    .testTag("bottom_nav_bar")
                             ) {
                                 NavigationBarItem(
                                     selected = currentTab == ScreenTab.HOME,

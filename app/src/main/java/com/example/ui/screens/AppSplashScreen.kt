@@ -78,6 +78,7 @@ import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceElevated
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.IndigoAccent
+import com.example.ui.theme.SkeuoButton
 import com.example.ui.viewmodel.TVViewModel
 import kotlinx.coroutines.delay
 
@@ -403,31 +404,32 @@ fun AppSplashScreen(
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
-                    Button(
+                    SkeuoButton(
                         onClick = onFinished,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = DarkSurfaceElevated,
-                            contentColor = CyanNeon
-                        ),
-                        shape = RoundedCornerShape(24.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, CyanNeon.copy(alpha = 0.5f)),
+                        isAccent = true,
                         modifier = Modifier
-                            .height(44.dp)
+                            .height(46.dp)
                             .testTag("skip_countdown_button")
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Bolt,
-                            contentDescription = null,
-                            tint = CyanNeon,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Enter Player Now",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = FontWeight.Bold
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Bolt,
+                                contentDescription = null,
+                                tint = Color(0xFF00363D),
+                                modifier = Modifier.size(18.dp)
                             )
-                        )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Enter Player Now",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = Color(0xFF00363D)
+                            )
+                        }
                     }
                 }
             }

@@ -50,7 +50,13 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.ChannelGenre
 import com.example.ui.components.ChannelCard
 import com.example.ui.components.EpgGridComponent
+import androidx.compose.foundation.clickable
 import com.example.ui.theme.CyanNeon
+import com.example.ui.theme.SkeuoButton
+import com.example.ui.theme.SkeuoJewelLed
+import com.example.ui.theme.SkeuoPhosphorCyan
+import com.example.ui.theme.skeuomorphicPanel
+import com.example.ui.theme.skeuomorphicWell
 import com.example.ui.viewmodel.TVViewModel
 
 @Composable
@@ -91,19 +97,17 @@ fun ChannelsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    onClick = { viewModel.openFullScreenSearch() },
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, CyanNeon.copy(alpha = 0.45f)),
+                // Debossed Skeuomorphic Search Socket
+                Box(
                     modifier = Modifier
                         .weight(1f)
+                        .skeuomorphicWell(cornerRadius = 12.dp)
+                        .clickable { viewModel.openFullScreenSearch() }
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                         .testTag("channels_search_input")
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -121,12 +125,12 @@ fun ChannelsScreen(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = CyanNeon.copy(alpha = 0.15f)
+                        SkeuoButton(
+                            onClick = { viewModel.openFullScreenSearch() },
+                            cornerRadius = 6.dp
                         ) {
                             Text(
-                                text = "Full Screen 🔍",
+                                text = "TUNER 🔍",
                                 color = CyanNeon,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
@@ -138,20 +142,18 @@ fun ChannelsScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Toggle between Channel List and EPG Guide Grid
-                Surface(
+                // Toggle between Channel List and EPG Guide Grid (Tactile 3D SkeuoButton)
+                SkeuoButton(
                     onClick = { isEpgViewActive = !isEpgViewActive },
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (isEpgViewActive) CyanNeon else MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.size(48.dp)
+                    isAccent = isEpgViewActive,
+                    cornerRadius = 12.dp,
+                    modifier = Modifier.size(46.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (isEpgViewActive) Icons.AutoMirrored.Filled.ViewList else Icons.Default.CalendarMonth,
-                            contentDescription = if (isEpgViewActive) "Channel List" else "EPG Guide",
-                            tint = if (isEpgViewActive) Color(0xFF00363D) else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                    Icon(
+                        imageVector = if (isEpgViewActive) Icons.AutoMirrored.Filled.ViewList else Icons.Default.CalendarMonth,
+                        contentDescription = if (isEpgViewActive) "Channel List" else "EPG Guide",
+                        tint = if (isEpgViewActive) Color(0xFF00363D) else MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
 

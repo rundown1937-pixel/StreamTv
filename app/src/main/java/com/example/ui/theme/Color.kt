@@ -11,15 +11,15 @@ val LiveRed = Color(0xFFEF4444)
 val EmeraldSuccess = Color(0xFF10B981)
 val AmberRating = Color(0xFFF59E0B)
 
-// Dark Theme (Default cinematic experience)
-val DarkBackground = Color(0xFF090D16)
-val DarkSurface = Color(0xFF121826)
-val DarkSurfaceVariant = Color(0xFF1B2236)
-val DarkSurfaceElevated = Color(0xFF242C44)
+// Dark Theme (Skeuomorphic Master Studio Console experience)
+val DarkBackground = Color(0xFF0D0F14) // Deep metallic studio chassis
+val DarkSurface = Color(0xFF161A22)    // Brushed titanium faceplate
+val DarkSurfaceVariant = Color(0xFF222834) // Beveled rack module
+val DarkSurfaceElevated = Color(0xFF2C3444) // Raised tactile control panel
 val DarkOnBackground = Color(0xFFF1F5F9)
 val DarkOnSurface = Color(0xFFE2E8F0)
 val DarkOnSurfaceVariant = Color(0xFF94A3B8)
-val DarkBorder = Color(0xFF2E3852)
+val DarkBorder = Color(0xFF384358)     // Specular beveled rim border
 
 // Light Theme
 val LightBackground = Color(0xFFF8FAFC)

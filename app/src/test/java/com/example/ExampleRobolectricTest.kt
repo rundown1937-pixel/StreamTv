@@ -293,7 +293,7 @@ class ExampleRobolectricTest {
     val f24 = channels.first { it.id == "france24_english" }
     vm.playChannel(f24)
     assertEquals("France 24 English", vm.currentChannel.value?.name)
-    assertEquals("https://static.france24.com/live/F24_EN_HI_HLS/live_tv.m3u8", vm.currentChannel.value?.streamUrl)
+    assertEquals("https://live.france24.com/hls/live/2037218-b/F24_EN_HI_HLS/master_5000.m3u8", vm.currentChannel.value?.streamUrl)
     assertTrue("France 24 must not point to DW", !vm.currentChannel.value!!.streamUrl.contains("dwstream"))
 
     val sky = channels.first { it.id == "sky_news_live" }

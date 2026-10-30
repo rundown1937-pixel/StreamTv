@@ -23,16 +23,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +47,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.CyanNeon
+import com.example.ui.theme.SkeuoAmberGlow
+import com.example.ui.theme.SkeuoButton
+import com.example.ui.theme.SkeuoEmeraldLed
+import com.example.ui.theme.SkeuoJewelLed
+import com.example.ui.theme.SkeuoScrew
+import com.example.ui.theme.skeuomorphicPanel
+import com.example.ui.theme.skeuomorphicWell
 import com.example.ui.viewmodel.ScreenTab
 import com.example.ui.viewmodel.TVViewModel
 import java.text.SimpleDateFormat
@@ -90,21 +91,24 @@ fun ProfilesScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
-                    Button(
+                    SkeuoButton(
                         onClick = onOpenAddProfileDialog,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = CyanNeon),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        isAccent = true,
                         modifier = Modifier.testTag("profiles_add_button")
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add",
-                            tint = Color(0xFF00363D),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add Profile", color = Color(0xFF00363D), fontWeight = FontWeight.Bold)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add",
+                                tint = Color(0xFF00363D),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add Profile", color = Color(0xFF00363D), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
                     }
                 }
 
@@ -117,28 +121,28 @@ fun ProfilesScreen(
                     items(profiles) { profile ->
                         val isSelected = activeProfile?.id == profile.id
 
-                        Card(
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) CyanNeon.copy(alpha = 0.15f)
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            ),
-                            border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, CyanNeon) else null,
+                        Box(
                             modifier = Modifier
-                                .width(120.dp)
+                                .width(124.dp)
+                                .then(
+                                    if (isSelected) Modifier
+                                        .skeuomorphicWell(cornerRadius = 16.dp)
+                                        .border(2.dp, CyanNeon, RoundedCornerShape(16.dp))
+                                    else Modifier.skeuomorphicPanel(cornerRadius = 16.dp, elevation = 4.dp)
+                                )
                                 .clip(RoundedCornerShape(16.dp))
                                 .clickable { viewModel.profileRepo.setActiveProfile(profile) }
-                                .testTag("profile_card_${profile.id}")
+                                .padding(12.dp)
+                                .testTag("profile_card_${profile.id}"),
+                            contentAlignment = Alignment.Center
                         ) {
                             Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(56.dp)
+                                        .size(54.dp)
                                         .clip(CircleShape)
                                         .background(Color(profile.avatarBgColorHex)),
                                     contentAlignment = Alignment.Center
@@ -165,19 +169,23 @@ fun ProfilesScreen(
                                     text = profile.name,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
 
-                                if (profile.isKidsProfile) {
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                if (isSelected) {
+                                    SkeuoJewelLed(isActive = true, color = SkeuoEmeraldLed, label = "ACTIVE", size = 7.dp)
+                                } else if (profile.isKidsProfile) {
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
                                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                        modifier = Modifier.padding(top = 4.dp)
+                                        modifier = Modifier.padding(top = 2.dp)
                                     ) {
                                         Text(
-                                            text = "KIDS SAFE",
+                                            text = "KIDS",
                                             fontSize = 9.sp,
                                             color = CyanNeon,
                                             fontWeight = FontWeight.Bold,
@@ -195,12 +203,24 @@ fun ProfilesScreen(
         // Active Profile Settings Card
         activeProfile?.let { current ->
             item {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    modifier = Modifier.fillMaxWidth()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            SkeuoScrew(size = 9.dp, rotationDegrees = 33f)
+                            SkeuoJewelLed(isActive = true, color = SkeuoEmeraldLed, label = "PROFILE ACTIVE")
+                            SkeuoScrew(size = 9.dp, rotationDegrees = 125f)
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -209,12 +229,14 @@ fun ProfilesScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(44.dp)
+                                        .size(48.dp)
+                                        .skeuomorphicWell(cornerRadius = 24.dp)
+                                        .padding(2.dp)
                                         .clip(CircleShape)
                                         .background(Color(current.avatarBgColorHex)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(text = current.avatarEmoji, fontSize = 22.sp)
+                                    Text(text = current.avatarEmoji, fontSize = 24.sp)
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
@@ -248,34 +270,41 @@ fun ProfilesScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Kids Mode Toggle for Active Profile
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        // Kids Mode Toggle for Active Profile inside debossed well
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .skeuomorphicWell(cornerRadius = 10.dp)
+                                .padding(12.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Child Safe Mode",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Automatically hides mature channels & blocks 18+ content without PIN",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Child Safe Mode",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Automatically hides mature channels & blocks 18+ content without PIN",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                Switch(
+                                    checked = current.isKidsProfile,
+                                    onCheckedChange = { isKids ->
+                                        viewModel.profileRepo.updateProfile(current.copy(isKidsProfile = isKids))
+                                    },
+                                    colors = SwitchDefaults.colors(checkedThumbColor = CyanNeon),
+                                    modifier = Modifier.testTag("profile_kids_toggle")
                                 )
                             }
-
-                            Switch(
-                                checked = current.isKidsProfile,
-                                onCheckedChange = { isKids ->
-                                    viewModel.profileRepo.updateProfile(current.copy(isKidsProfile = isKids))
-                                },
-                                colors = SwitchDefaults.colors(checkedThumbColor = CyanNeon),
-                                modifier = Modifier.testTag("profile_kids_toggle")
-                            )
                         }
                     }
                 }
@@ -305,15 +334,12 @@ fun ProfilesScreen(
                     }
 
                     if (current.watchHistory.isNotEmpty()) {
-                        Button(
+                        SkeuoButton(
                             onClick = {
                                 viewModel.profileRepo.updateProfile(current.copy(watchHistory = emptyList()))
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            }
                         ) {
-                            Text("Clear", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Clear", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                         }
                     }
                 }
@@ -321,24 +347,19 @@ fun ProfilesScreen(
 
             if (current.watchHistory.isEmpty()) {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        modifier = Modifier.fillMaxWidth()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .skeuomorphicWell(cornerRadius = 12.dp)
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No watch history for ${current.name} yet.\nStart streaming channels to see history and tailored recommendations!",
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
+                        Text(
+                            text = "No watch history for ${current.name} yet.\nStart streaming channels to see history and tailored recommendations!",
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
             } else {
@@ -346,13 +367,10 @@ fun ProfilesScreen(
                     val sdf = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
                     val timeStr = sdf.format(Date(entry.timestamp))
 
-                    Card(
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                        ),
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .skeuomorphicPanel(cornerRadius = 12.dp, elevation = 3.dp)
                             .clickable {
                                 val channel = viewModel.playlistRepo.channels.value.firstOrNull { it.id == entry.channelId }
                                 if (channel != null) {
@@ -360,11 +378,10 @@ fun ProfilesScreen(
                                     viewModel.selectTab(ScreenTab.HOME)
                                 }
                             }
+                            .padding(12.dp)
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(

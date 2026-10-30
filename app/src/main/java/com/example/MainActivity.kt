@@ -107,21 +107,30 @@ class MainActivity : ComponentActivity() {
             windowInsetsController.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             windowInsetsController.show(WindowInsetsCompat.Type.systemBars())
+            // Only clear keep-screen-on if not playing
+            if (!viewModel.isPlaying.value) {
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
         }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             if (!viewModel.isFullscreen.value) {
                 viewModel.setFullscreen(true)
             }
         } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {
             if (viewModel.isFullscreen.value) {
                 viewModel.setFullscreen(false)
+            }
+            if (!viewModel.isPlaying.value) {
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }
     }

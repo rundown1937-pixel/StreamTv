@@ -1,6 +1,5 @@
 package com.example.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,8 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
@@ -21,17 +18,13 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -42,7 +35,12 @@ import coil.compose.AsyncImage
 import com.example.data.local.ProgramEntity
 import com.example.data.model.Channel
 import com.example.ui.theme.CyanNeon
-import com.example.ui.theme.LiveRed
+import com.example.ui.theme.SkeuoButton
+import com.example.ui.theme.SkeuoJewelLed
+import com.example.ui.theme.SkeuoRubyLed
+import com.example.ui.theme.SkeuoScrew
+import com.example.ui.theme.skeuomorphicPanel
+import com.example.ui.theme.skeuomorphicWell
 
 @Composable
 fun MiniPlayerBar(
@@ -55,29 +53,27 @@ fun MiniPlayerBar(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+    Box(
         modifier = modifier
             .fillMaxWidth()
+            .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 10.dp)
             .clickable(onClick = onExpand)
             .testTag("mini_player_bar")
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Channel Logo / Thumbnail
+            // Corner hex screw on rack faceplate
+            SkeuoScrew(size = 8.dp, rotationDegrees = 25f, modifier = Modifier.padding(end = 8.dp))
+
+            // Channel Logo / Thumbnail in debossed well
             Box(
                 modifier = Modifier
                     .size(46.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surface),
+                    .skeuomorphicWell(cornerRadius = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (!channel.logoUrl.isNullOrEmpty()) {
@@ -95,14 +91,14 @@ fun MiniPlayerBar(
                     )
                 }
 
-                // Live red dot
+                // Live jewel indicator on top corner
                 Box(
                     modifier = Modifier
-                        .padding(4.dp)
-                        .size(6.dp)
-                        .background(LiveRed, CircleShape)
+                        .padding(3.dp)
                         .align(Alignment.TopEnd)
-                )
+                ) {
+                    SkeuoJewelLed(isActive = isPlaying, color = SkeuoRubyLed, size = 6.dp)
+                }
             }
 
             Spacer(modifier = Modifier.width(10.dp))
@@ -118,7 +114,7 @@ fun MiniPlayerBar(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = currentProgram?.title ?: "Live Streaming • ${channel.genre}",
+                    text = currentProgram?.title ?: "Live Broadcast • ${channel.genre}",
                     style = MaterialTheme.typography.bodySmall,
                     color = CyanNeon,
                     fontSize = 11.sp,
@@ -140,18 +136,24 @@ fun MiniPlayerBar(
                 )
             }
 
-            // Play / Pause
-            IconButton(
+            Spacer(modifier = Modifier.width(4.dp))
+
+            // Tactile Play / Pause SkeuoButton
+            SkeuoButton(
                 onClick = onTogglePlayPause,
+                isAccent = true,
+                cornerRadius = 18.dp,
                 modifier = Modifier.size(36.dp).testTag("mini_player_play_pause")
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = CyanNeon,
-                    modifier = Modifier.size(22.dp)
+                    tint = Color(0xFF00363D),
+                    modifier = Modifier.size(20.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.width(4.dp))
 
             // Expand
             IconButton(

@@ -28,18 +28,9 @@ import androidx.compose.material.icons.filled.NoAdultContent
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import com.example.util.AppLanguage
-import com.example.util.LocalAppStrings
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -57,8 +48,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.CyanNeon
 import com.example.ui.theme.EmeraldSuccess
+import com.example.ui.theme.SkeuoAmberGlow
+import com.example.ui.theme.SkeuoButton
+import com.example.ui.theme.SkeuoEmeraldLed
+import com.example.ui.theme.SkeuoJewelLed
+import com.example.ui.theme.SkeuoRubyLed
+import com.example.ui.theme.SkeuoScrew
+import com.example.ui.theme.skeuomorphicPanel
+import com.example.ui.theme.skeuomorphicWell
 import com.example.ui.viewmodel.PlaybackQuality
 import com.example.ui.viewmodel.TVViewModel
+import com.example.util.AppLanguage
+import com.example.util.LocalAppStrings
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -94,16 +95,29 @@ fun SettingsScreen(
             .fillMaxSize()
             .testTag("settings_screen_column"),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // Master Live Channel Feed Status (M3U links hidden from user)
+        // Master Live Channel Feed Status Rack Module
         item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    // Studio Chassis Top Bar
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 15f)
+                        SkeuoJewelLed(isActive = true, color = SkeuoEmeraldLed, label = "RACK #01")
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 110f)
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -153,78 +167,90 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    // Debossed metrics socket
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .skeuomorphicWell(cornerRadius = 10.dp)
+                            .padding(12.dp)
                     ) {
-                        Text(
-                            text = "Auto-Update on Launch:",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "Enabled • Every App Open",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = CyanNeon,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Auto-Update on Launch:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "Enabled • Every App Open",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = CyanNeon,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Channels Available:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "${totalChannels.size} live streams",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Channels Available:",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "${totalChannels.size} live streams",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Last Synced:",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = lastSyncStr,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Last Synced:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = lastSyncStr,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Update Feed Button
-                    Button(
-                        onClick = { viewModel.triggerManualSync() },
-                        enabled = !isSyncing,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = CyanNeon),
-                        modifier = Modifier.fillMaxWidth().testTag("refresh_channel_feed_btn")
+                    // Update Feed Tactile Skeuomorphic Button
+                    SkeuoButton(
+                        onClick = { if (!isSyncing) viewModel.triggerManualSync() },
+                        isAccent = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("refresh_channel_feed_btn")
                     ) {
-                        if (isSyncing) {
-                            CircularProgressIndicator(color = Color(0xFF00363D), modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Updating Channel Feed...", color = Color(0xFF00363D), fontWeight = FontWeight.Bold)
-                        } else {
-                            Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = Color(0xFF00363D), modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Update Channel Feed Now", color = Color(0xFF00363D), fontWeight = FontWeight.Bold)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            if (isSyncing) {
+                                CircularProgressIndicator(color = Color(0xFF00363D), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Updating Channel Feed...", color = Color(0xFF00363D), fontWeight = FontWeight.Bold)
+                            } else {
+                                Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = Color(0xFF00363D), modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Update Channel Feed Now", color = Color(0xFF00363D), fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
 
@@ -241,14 +267,27 @@ fun SettingsScreen(
             }
         }
 
-        // App Interface Language Selector (Requested by user)
+        // App Interface Language Selector
         item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.fillMaxWidth().testTag("app_language_selector_card")
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
+                    .testTag("app_language_selector_card")
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 45f)
+                        SkeuoJewelLed(isActive = true, color = SkeuoAmberGlow, label = "I18N")
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 135f)
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -287,66 +326,74 @@ fun SettingsScreen(
 
                     AppLanguage.entries.forEach { lang ->
                         val isSelected = currentAppLanguage == lang
-                        Row(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { viewModel.setAppInterfaceLanguage(lang) }
-                                .padding(vertical = 10.dp, horizontal = 6.dp)
-                                .testTag("language_option_${lang.code}"),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = if (isSelected) Icons.Default.Check else Icons.Default.Language,
-                                    contentDescription = null,
-                                    tint = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(20.dp)
+                                .then(
+                                    if (isSelected) Modifier.skeuomorphicWell(cornerRadius = 10.dp)
+                                    else Modifier.clip(RoundedCornerShape(8.dp))
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "${lang.displayName} • ${lang.nativeName}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurface
+                                .clickable { viewModel.setAppInterfaceLanguage(lang) }
+                                .padding(vertical = 10.dp, horizontal = 12.dp)
+                                .testTag("language_option_${lang.code}")
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (isSelected) Icons.Default.Check else Icons.Default.Language,
+                                        contentDescription = null,
+                                        tint = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(20.dp)
                                     )
-                                    Text(
-                                        text = "Language code: ${lang.code.uppercase()}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontSize = 11.sp
-                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = "${lang.displayName} • ${lang.nativeName}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Language code: ${lang.code.uppercase()}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 11.sp
+                                        )
+                                    }
                                 }
-                            }
 
-                            if (isSelected) {
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = CyanNeon.copy(alpha = 0.15f)
-                                ) {
-                                    Text(
-                                        text = "ACTIVE",
-                                        color = CyanNeon,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
+                                if (isSelected) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = CyanNeon.copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = "ACTIVE",
+                                            color = CyanNeon,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
                 }
             }
         }
 
-        // 18+ Adult Channels Restriction Option (Requested by user)
+        // 18+ Adult Channels Restriction Option
         item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -377,12 +424,20 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(12.dp))
 
                         Column {
-                            Text(
-                                text = "18+ Adult Content Filter",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "18+ Adult Content Filter",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                SkeuoJewelLed(
+                                    isActive = isAdultRestrictionEnabled,
+                                    color = SkeuoRubyLed,
+                                    size = 9.dp
+                                )
+                            }
                             Text(
                                 text = if (isAdultRestrictionEnabled) "Blocked & hidden from all lists" else "Allow adult channels",
                                 style = MaterialTheme.typography.bodySmall,
@@ -401,14 +456,26 @@ fun SettingsScreen(
             }
         }
 
-        // Room Database & Offline Cache Management (Requested by user)
+        // Room Database & Offline Cache Management
         item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 60f)
+                        SkeuoJewelLed(isActive = true, color = SkeuoEmeraldLed, label = "STORAGE")
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 170f)
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -445,54 +512,65 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    // Debossed storage metrics socket
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .skeuomorphicWell(cornerRadius = 10.dp)
+                            .padding(12.dp)
                     ) {
-                        Text(text = "Cached Channels in Room:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(text = "${storageMetrics.offlineChannelsCount} items", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                    }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "Cached Channels in Room:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "${storageMetrics.offlineChannelsCount} items", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                            }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "Viewing History Entries:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "${storageMetrics.historyEntriesCount} records", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                            }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "Viewing History Entries:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(text = "${storageMetrics.historyEntriesCount} records", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                    }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "EPG Program Schedule Cache:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "${storageMetrics.epgProgramsCount} shows", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                            }
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "EPG Program Schedule Cache:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(text = "${storageMetrics.epgProgramsCount} shows", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "Estimated Cache Size:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(text = "${storageMetrics.totalCacheSizeMb} MB", fontSize = 12.sp, color = CyanNeon, fontWeight = FontWeight.Bold)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "Estimated Cache Size:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "${storageMetrics.totalCacheSizeMb} MB", fontSize = 12.sp, color = CyanNeon, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    OutlinedButton(
+                    SkeuoButton(
                         onClick = { viewModel.clearRoomChannelCache() },
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth().testTag("clear_offline_db_cache_btn")
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .testTag("clear_offline_db_cache_btn")
                     ) {
-                        Icon(Icons.Default.CleaningServices, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(appStrings.clearCache, fontSize = 12.sp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.Default.CleaningServices, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(appStrings.clearCache, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -507,16 +585,27 @@ fun SettingsScreen(
             }
         }
 
-        // Permanent Two Karate Chop Motion Quick Launch Card (Always Active, No ON/OFF)
+        // Permanent Two Karate Chop Motion Quick Launch Card
         item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
                     .testTag("karate_chop_feature_card")
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 90f)
+                        SkeuoJewelLed(isActive = isKarateChopEnabled, color = SkeuoEmeraldLed, label = "SENSOR")
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 200f)
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -570,13 +659,14 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Live Sensor Meter & Chop Progress
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-                        modifier = Modifier.fillMaxWidth()
+                    // Live Sensor Meter & Chop Progress inside recessed VFD screen
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .skeuomorphicWell(cornerRadius = 12.dp)
+                            .padding(12.dp)
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -653,25 +743,28 @@ fun SettingsScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Simulate / Test Button
-                    Button(
+                    // Simulate / Test Button with tactile depth
+                    SkeuoButton(
                         onClick = { viewModel.simulateKarateChop() },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = CyanNeon,
-                            contentColor = Color(0xFF00363D)
-                        ),
+                        isAccent = true,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(48.dp)
                             .testTag("test_karate_chop_button")
                     ) {
-                        Text(
-                            text = "🥋 Test Two Karate Chops (Launch TV)",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "🥋 Test Two Karate Chops (Launch TV)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = Color(0xFF00363D)
+                            )
+                        }
                     }
                 }
             }
@@ -679,12 +772,24 @@ fun SettingsScreen(
 
         // Playback & Bandwidth Optimization
         item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 30f)
+                        SkeuoJewelLed(isActive = true, color = SkeuoAmberGlow, label = "CODEC")
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 140f)
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
                     Text(
                         text = "Playback & Resolution Modes",
                         style = MaterialTheme.typography.titleMedium,
@@ -698,47 +803,62 @@ fun SettingsScreen(
                     qualities.forEach { q ->
                         val isSelected = playbackQuality == q
 
-                        Row(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .then(
+                                    if (isSelected) Modifier.skeuomorphicWell(cornerRadius = 10.dp)
+                                    else Modifier.clip(RoundedCornerShape(8.dp))
+                                )
                                 .clickable { viewModel.setPlaybackQuality(q) }
-                                .padding(vertical = 8.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(vertical = 10.dp, horizontal = 12.dp)
                         ) {
-                            Icon(
-                                imageVector = if (isSelected) Icons.Default.Check else Icons.Default.HighQuality,
-                                contentDescription = null,
-                                tint = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = q.label,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurface
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isSelected) Icons.Default.Check else Icons.Default.HighQuality,
+                                    contentDescription = null,
+                                    tint = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                                Text(
-                                    text = q.bitRateLimitDesc,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = q.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = q.bitRateLimitDesc,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    OutlinedButton(
+                    SkeuoButton(
                         onClick = onOpenSubtitlesDialog,
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth().testTag("settings_subtitles_btn")
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .testTag("settings_subtitles_btn")
                     ) {
-                        Icon(imageVector = Icons.Default.ClosedCaption, contentDescription = null, tint = CyanNeon)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Subtitles & Accessibility Tracks")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(imageVector = Icons.Default.ClosedCaption, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Subtitles & Accessibility Tracks", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+                        }
                     }
                 }
             }
@@ -746,11 +866,10 @@ fun SettingsScreen(
 
         // Parental Controls Shortcut
         item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
                     .clickable { onOpenParentalSettings() }
                     .testTag("parental_settings_shortcut")
             ) {
@@ -780,33 +899,41 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    SkeuoJewelLed(isActive = true, color = SkeuoAmberGlow, size = 9.dp)
                 }
             }
         }
 
         // Device & App Information Card
         item {
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 4.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Device Compatibility & Specs",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Device Compatibility & Specs",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 75f)
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "• App: StreamPulse TV v1.0\n• Engine: AndroidX Media3 ExoPlayer (Auto Device Fit)\n• Master Feed: Official Global Stream Network (Encrypted)\n• Room Database SQLite Cache with Auto Ram Optimizer\n• Screen Capture & Scheduled Broadcast Recording",
+                        text = "• App: StreamPulse TV v1.0\n• Engine: AndroidX Media3 ExoPlayer (Auto Device Fit)\n• Master Feed: Official Global Stream Network (Encrypted)\n• Room Database SQLite Cache with Auto RAM Optimizer\n• Picture-in-Picture & Real-time EPG Schedule Guide",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 18.sp

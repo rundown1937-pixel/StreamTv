@@ -80,6 +80,11 @@ import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceElevated
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.IndigoAccent
+import com.example.ui.theme.SkeuoJewelLed
+import com.example.ui.theme.SkeuoEmeraldLed
+import com.example.ui.theme.SkeuoRubyLed
+import com.example.ui.theme.skeuomorphicPanel
+import com.example.ui.theme.skeuomorphicWell
 import com.example.ui.viewmodel.TVViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -428,13 +433,11 @@ private fun FullScreenSearchChannelItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        color = DarkSurface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+    Box(
         modifier = modifier
             .fillMaxWidth()
+            .skeuomorphicPanel(cornerRadius = 14.dp, elevation = 4.dp)
+            .clickable { onClick() }
             .testTag("search_item_${channel.id}")
     ) {
         Row(
@@ -443,13 +446,12 @@ private fun FullScreenSearchChannelItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Channel Logo / Avatar
+            // Channel Logo in debossed well
             Box(
                 modifier = Modifier
                     .size(54.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(DarkSurfaceElevated)
-                    .border(1.dp, DarkBorder, RoundedCornerShape(12.dp)),
+                    .skeuomorphicWell(cornerRadius = 12.dp)
+                    .padding(3.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (!channel.logoUrl.isNullOrEmpty()) {
@@ -466,19 +468,22 @@ private fun FullScreenSearchChannelItem(
                         imageVector = Icons.Default.LiveTv,
                         contentDescription = channel.name,
                         tint = CyanNeon,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(26.dp)
                     )
                 }
 
-                // Live status dot
+                // Skeuomorphic jewel status indicator
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(3.dp)
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(if (isBroken) Color(0xFFFF5252) else EmeraldSuccess)
-                )
+                        .padding(2.dp)
+                ) {
+                    SkeuoJewelLed(
+                        isActive = true,
+                        color = if (isBroken) SkeuoRubyLed else SkeuoEmeraldLed,
+                        size = 8.dp
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))

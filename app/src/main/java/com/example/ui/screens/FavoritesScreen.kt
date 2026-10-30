@@ -54,6 +54,10 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.Channel
 import com.example.ui.components.ChannelCard
 import com.example.ui.theme.CyanNeon
+import com.example.ui.theme.SkeuoButton
+import com.example.ui.theme.SkeuoScrew
+import com.example.ui.theme.skeuomorphicPanel
+import com.example.ui.theme.skeuomorphicWell
 import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkSurface
@@ -94,11 +98,11 @@ fun FavoritesScreen(
             .background(DarkBackground)
             .testTag("favorites_screen_root")
     ) {
-        // Top Header
-        Surface(
-            color = DarkSurface,
-            shadowElevation = 6.dp,
-            modifier = Modifier.fillMaxWidth()
+        // Top Header (Skeuomorphic Console Faceplate)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .skeuomorphicPanel(cornerRadius = 0.dp, elevation = 8.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -111,19 +115,20 @@ fun FavoritesScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color(0xFFFFD700).copy(alpha = 0.2f),
-                            modifier = Modifier.size(40.dp)
+                        SkeuoScrew(size = 9.dp, rotationDegrees = 30f, modifier = Modifier.padding(end = 8.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .skeuomorphicWell(cornerRadius = 10.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = "Favorites",
-                                    tint = Color(0xFFFFD700),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Favorites",
+                                tint = Color(0xFFFFD700),
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
@@ -143,28 +148,32 @@ fun FavoritesScreen(
                     }
 
                     if (favoriteChannels.isNotEmpty()) {
-                        Button(
+                        SkeuoButton(
                             onClick = {
                                 val first = displayList.firstOrNull() ?: favoriteChannels.first()
                                 viewModel.playChannel(first, directLandscape = true)
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = CyanNeon),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                            isAccent = true,
+                            cornerRadius = 8.dp
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Play",
-                                tint = Color(0xFF00363D),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Play Live",
-                                color = Color(0xFF00363D),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Play",
+                                    tint = Color(0xFF00363D),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Play Live",
+                                    color = Color(0xFF00363D),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                 }
