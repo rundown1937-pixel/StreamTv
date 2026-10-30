@@ -1,0 +1,6 @@
+{
+  "name": "StreamPulse TV",
+  "description": "Smart TV & live streaming app featuring 12,000+ verified channels, real-time EPG program guide, screen captures, broadcast recording, and multi-user profiles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
