@@ -18,5 +18,5 @@ data class OfflineChannelEntity(
     val downloadProgress: Float = 1.0f,
     val isDownloaded: Boolean = true,
     val localUri: String? = null,
-    val downloadedAt: Long = System.currentTimeMillis()
+    val downloadedAt: Long = System.currentTimeMillis(),
 )

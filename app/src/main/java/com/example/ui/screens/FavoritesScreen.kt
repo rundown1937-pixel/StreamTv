@@ -13,9 +13,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,8 +30,6 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -46,48 +48,40 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Channel
+import com.example.data.model.isOfflineMetadata
 import com.example.ui.components.ChannelCard
-import com.example.ui.theme.CyanNeon
-import com.example.ui.theme.SkeuoButton
-import com.example.ui.theme.SkeuoScrew
-import com.example.ui.theme.skeuomorphicPanel
-import com.example.ui.theme.skeuomorphicWell
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceElevated
+import com.example.ui.theme.LocalAppThemeColors
 import com.example.ui.viewmodel.ScreenTab
 import com.example.ui.viewmodel.TVViewModel
 
 @Composable
 fun FavoritesScreen(
     viewModel: TVViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val favoriteChannels by viewModel.favoriteChannels.collectAsState()
     val currentChannel by viewModel.currentChannel.collectAsState()
-    val currentProgramsMap by viewModel.currentProgramsMap.collectAsState()
     val brokenChannelIds by viewModel.brokenChannelIds.collectAsState()
+    val (cardBg, cardBorder, socketBg) = LocalAppThemeColors.current
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedGenre by remember { mutableStateOf("ALL") }
 
     val genres = remember(favoriteChannels) {
-        listOf("ALL") + favoriteChannels.map { it.genre }.distinct().sorted()
+        listOf("ALL") + favoriteChannels.asSequence().map(Channel::genre).distinct().sorted().toList()
     }
 
     val displayList = remember(favoriteChannels, searchQuery, selectedGenre) {
-        favoriteChannels.filter { ch ->
-            val genreMatch = selectedGenre == "ALL" || ch.genre.equals(selectedGenre, ignoreCase = true)
-            val queryMatch = searchQuery.isBlank() || ch.name.contains(searchQuery, ignoreCase = true) ||
-                    ch.country.contains(searchQuery, ignoreCase = true) ||
-                    ch.language.contains(searchQuery, ignoreCase = true)
+        favoriteChannels.filter { (_, name, _, _, genre, country, language) ->
+            val genreMatch = (selectedGenre == "ALL") || genre.equals(selectedGenre, ignoreCase = true)
+            val queryMatch = searchQuery.isBlank() || name.contains(searchQuery, ignoreCase = true) ||
+                    country.contains(searchQuery, ignoreCase = true) ||
+                    language.contains(searchQuery, ignoreCase = true)
             genreMatch && queryMatch
         }
     }
@@ -95,83 +89,84 @@ fun FavoritesScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
-            .testTag("favorites_screen_root")
+            .background(MaterialTheme.colorScheme.background)
+            .testTag("favorites_screen_root"),
     ) {
-        // Top Header (Skeuomorphic Console Faceplate)
+        // Top Header (Material You Surface Panel)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .skeuomorphicPanel(cornerRadius = 0.dp, elevation = 8.dp)
+                .background(cardBg)
+                .border(width = 1.dp, color = cardBorder),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 30f, modifier = Modifier.padding(end = 8.dp))
-
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
-                                .skeuomorphicWell(cornerRadius = 10.dp),
-                            contentAlignment = Alignment.Center
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(socketBg),
+                            contentAlignment = Alignment.Center,
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "Favorites",
-                                tint = Color(0xFFFFD700),
-                                modifier = Modifier.size(24.dp)
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp),
                             )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Bookmarked Favorites",
+                                text = "Favorites",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = "${favoriteChannels.size} channels saved for quick access",
+                                text = "${favoriteChannels.size} saved channels",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = CyanNeon,
-                                fontSize = 12.sp
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 12.sp,
                             )
                         }
                     }
 
                     if (favoriteChannels.isNotEmpty()) {
-                        SkeuoButton(
+                        Surface(
                             onClick = {
                                 val first = displayList.firstOrNull() ?: favoriteChannels.first()
                                 viewModel.playChannel(first, directLandscape = true)
                             },
-                            isAccent = true,
-                            cornerRadius = 8.dp
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 44.dp),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.PlayArrow,
                                     contentDescription = "Play",
-                                    tint = Color(0xFF00363D),
-                                    modifier = Modifier.size(18.dp)
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "Play Live",
-                                    color = Color(0xFF00363D),
+                                    color = MaterialTheme.colorScheme.onPrimary,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
+                                    fontSize = 12.sp,
                                 )
                             }
                         }
@@ -181,7 +176,7 @@ fun FavoritesScreen(
                 if (favoriteChannels.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Search within Favorites
+                    // Search within Favorites (WCAG >= 52dp min height)
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -190,17 +185,20 @@ fun FavoritesScreen(
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = null,
-                                tint = CyanNeon,
-                                modifier = Modifier.size(18.dp)
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp),
                             )
                         },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
+                                IconButton(
+                                    onClick = { searchQuery = "" },
+                                    modifier = Modifier.size(48.dp),
+                                ) {
                                     Icon(
                                         imageVector = Icons.Default.Clear,
-                                        contentDescription = "Clear",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        contentDescription = "Clear favorites filter",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
@@ -208,32 +206,34 @@ fun FavoritesScreen(
                         singleLine = true,
                         shape = RoundedCornerShape(20.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = CyanNeon,
-                            unfocusedBorderColor = DarkBorder,
-                            focusedContainerColor = DarkSurfaceElevated,
-                            unfocusedContainerColor = DarkSurfaceElevated
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = cardBorder,
+                            focusedContainerColor = socketBg,
+                            unfocusedContainerColor = socketBg,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
+                            .defaultMinSize(minHeight = 52.dp),
                     )
 
                     if (genres.size > 2) {
                         Spacer(modifier = Modifier.height(8.dp))
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            items(genres) { g ->
+                            items(genres, key = { it }) { g ->
                                 val isSelected = selectedGenre.equals(g, ignoreCase = true)
                                 FilterChip(
                                     selected = isSelected,
                                     onClick = { selectedGenre = g },
-                                    label = { Text(g, fontSize = 11.sp) },
+                                    label = { Text(g, fontSize = 12.sp) },
                                     colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = CyanNeon,
-                                        selectedLabelColor = Color(0xFF00363D),
-                                        containerColor = DarkSurfaceElevated,
-                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                        containerColor = socketBg,
+                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                     ),
-                                    modifier = Modifier.height(28.dp)
+                                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                                 )
                             }
                         }
@@ -242,30 +242,39 @@ fun FavoritesScreen(
             }
         }
 
+        // Native Ad in Favorites Tab (ca-app-pub-2382308752605431/1711163681)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+        ) {
+            com.example.util.AdNativeView(adUnitId = com.example.util.AdManager.FAVORITES_NATIVE_AD_ID)
+        }
+
         // Favorites Content
         if (favoriteChannels.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(32.dp),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    verticalArrangement = Arrangement.Center,
                 ) {
                     Box(
                         modifier = Modifier
                             .size(80.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFFD700).copy(alpha = 0.12f)),
-                        contentAlignment = Alignment.Center
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
-                            tint = Color(0xFFFFD700),
-                            modifier = Modifier.size(44.dp)
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(44.dp),
                         )
                     }
                     Spacer(modifier = Modifier.height(18.dp))
@@ -273,32 +282,32 @@ fun FavoritesScreen(
                         text = "No Bookmarked Channels Yet",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Tap the Star icon on any channel card or in player controls to bookmark it here for quick 1-tap playback in landscape mode.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )
                     Spacer(modifier = Modifier.height(20.dp))
                     Button(
-                        onClick = { viewModel.selectTab(ScreenTab.CHANNELS) },
-                        colors = ButtonDefaults.buttonColors(containerColor = CyanNeon),
-                        shape = RoundedCornerShape(12.dp)
+                        onClick = { viewModel.selectTab(ScreenTab.HOME) },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Default.Tv,
                             contentDescription = null,
-                            tint = Color(0xFF00363D),
-                            modifier = Modifier.size(18.dp)
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Browse 12,800+ Channels",
-                            color = Color(0xFF00363D),
-                            fontWeight = FontWeight.Bold
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
@@ -308,13 +317,13 @@ fun FavoritesScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(24.dp),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "No favorites match \"$searchQuery\"",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Button(
@@ -322,35 +331,37 @@ fun FavoritesScreen(
                             searchQuery = ""
                             selectedGenre = "ALL"
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = CyanNeon)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     ) {
-                        Text("Reset Filter", color = Color(0xFF00363D))
+                        Text("Reset Filter", color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
         } else {
-            LazyColumn(
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 360.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
                     .fillMaxSize()
                     .testTag("favorites_list"),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(
                     items = displayList,
-                    key = { it.id }
+                    key = Channel::id,
                 ) { channel ->
+                    val isOffline = brokenChannelIds.contains(channel.id) || channel.isOfflineMetadata()
                     ChannelCard(
                         channel = channel.copy(isFavorite = true),
                         isSelected = currentChannel?.id == channel.id,
-                        currentProgram = currentProgramsMap[channel.id],
-                        isLive = !brokenChannelIds.contains(channel.id),
-                        isBroken = brokenChannelIds.contains(channel.id),
+                        isLive = !isOffline,
+                        isBroken = isOffline,
                         onSelect = { viewModel.playChannel(channel, directLandscape = true) },
-                        onToggleFavorite = { viewModel.toggleFavorite(channel.id) },
-                        onOpenSchedule = { viewModel.openChannelSchedule(channel) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        viewModel.toggleFavorite(channel.id)
+                    }
                 }
             }
         }

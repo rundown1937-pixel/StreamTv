@@ -2,6 +2,7 @@ package com.example.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.example.data.model.ActivityLog
 import com.example.data.model.UserProfile
 import com.example.data.model.WatchHistoryEntry
@@ -12,7 +13,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-class ProfileRepository(private val context: Context) {
+class ProfileRepository(context: Context) {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("stream_pulse_profiles", Context.MODE_PRIVATE)
@@ -33,7 +34,7 @@ class ProfileRepository(private val context: Context) {
     val activeProfile: StateFlow<UserProfile?> = _activeProfile.asStateFlow()
 
     private val _parentalPin = MutableStateFlow(
-        prefs.getString(KEY_PARENTAL_PIN, DEFAULT_PIN) ?: DEFAULT_PIN
+        prefs.getString(KEY_PARENTAL_PIN, DEFAULT_PIN) ?: DEFAULT_PIN,
     )
     val parentalPin: StateFlow<String> = _parentalPin.asStateFlow()
 
@@ -68,8 +69,8 @@ class ProfileRepository(private val context: Context) {
                             profileName = obj.getString("profileName"),
                             action = obj.getString("action"),
                             channelName = if (obj.has("channelName") && !obj.isNull("channelName")) obj.getString("channelName") else null,
-                            timestamp = obj.getLong("timestamp")
-                        )
+                            timestamp = obj.getLong("timestamp"),
+                        ),
                     )
                 }
                 _activityLogs.value = list
@@ -85,14 +86,14 @@ class ProfileRepository(private val context: Context) {
                 id = UUID.randomUUID().toString(),
                 profileName = "Main Family",
                 action = "Parental Controls Enabled (Default PIN: 1234)",
-                timestamp = System.currentTimeMillis() - 86400000
+                timestamp = System.currentTimeMillis() - 86400000,
             ),
             ActivityLog(
                 id = UUID.randomUUID().toString(),
                 profileName = "Kids TV",
                 action = "Child Safe Mode Activated",
-                timestamp = System.currentTimeMillis() - 3600000
-            )
+                timestamp = System.currentTimeMillis() - 3600000,
+            ),
         )
     }
 
@@ -121,8 +122,8 @@ class ProfileRepository(private val context: Context) {
                                     channelId = hObj.getString("channelId"),
                                     channelName = hObj.getString("channelName"),
                                     timestamp = hObj.getLong("timestamp"),
-                                    durationSeconds = hObj.optLong("durationSeconds", 0L)
-                                )
+                                    durationSeconds = hObj.optLong("durationSeconds", 0L),
+                                ),
                             )
                         }
                     }
@@ -132,11 +133,11 @@ class ProfileRepository(private val context: Context) {
                             id = obj.getString("id"),
                             name = obj.getString("name"),
                             avatarEmoji = obj.optString("avatarEmoji", "🎬"),
-                            avatarBgColorHex = obj.optLong("avatarBgColorHex", 0xFF6366F1),
+                            avatarBgColorHex = obj.optLong("avatarBgColorHex", 0xFF333333),
                             isKidsProfile = obj.optBoolean("isKidsProfile", false),
                             favorites = favs,
-                            watchHistory = history
-                        )
+                            watchHistory = history,
+                        ),
                     )
                 }
             } catch (e: Exception) {
@@ -152,73 +153,73 @@ class ProfileRepository(private val context: Context) {
                         id = "profile_main",
                         name = "Master Family",
                         avatarEmoji = "👑",
-                        avatarBgColorHex = 0xFF6366F1,
+                        avatarBgColorHex = 0xFF2C2C2C,
                         isKidsProfile = false,
-                        favorites = listOf("bbc_news_global", "redbull_tv", "retro_cinema_classic")
+                        favorites = listOf("bbc_news_global", "redbull_tv", "retro_cinema_classic"),
                     ),
                     UserProfile(
                         id = "profile_kids",
                         name = "Junior Explorer",
                         avatarEmoji = "🦁",
-                        avatarBgColorHex = 0xFF10B981,
+                        avatarBgColorHex = 0xFF383838,
                         isKidsProfile = true,
-                        favorites = listOf("pbs_kids", "duck_tv_kids", "toon_classics")
+                        favorites = listOf("pbs_kids", "duck_tv_kids", "toon_classics"),
                     ),
                     UserProfile(
                         id = "profile_cinema",
                         name = "Movie Buff",
                         avatarEmoji = "🍿",
-                        avatarBgColorHex = 0xFFF59E0B,
+                        avatarBgColorHex = 0xFF444444,
                         isKidsProfile = false,
-                        favorites = listOf("retro_cinema_classic", "filmrise_action")
+                        favorites = listOf("retro_cinema_classic", "filmrise_action"),
                     ),
                     UserProfile(
                         id = "profile_sports",
                         name = "Sports Fan",
                         avatarEmoji = "⚡",
-                        avatarBgColorHex = 0xFFEF4444,
+                        avatarBgColorHex = 0xFF505050,
                         isKidsProfile = false,
-                        favorites = listOf("redbull_tv", "sports_grid")
-                    )
-                )
+                        favorites = listOf("redbull_tv", "sports_grid"),
+                    ),
+                ),
             )
             saveProfiles(list)
         }
 
         _profiles.value = list
         val activeId = prefs.getString(KEY_ACTIVE_PROFILE_ID, list.first().id)
-        _activeProfile.value = list.firstOrNull { it.id == activeId } ?: list.first()
+        _activeProfile.value = list.firstOrNull { (id) -> id == activeId } ?: list.first()
     }
 
     private fun saveProfiles(list: List<UserProfile>) {
         try {
             val array = JSONArray()
-            for (p in list) {
+            for ((id, name, avatarEmoji, avatarBgColorHex, isKidsProfile, favorites, watchHistory, _) in list) {
                 val obj = JSONObject()
-                obj.put("id", p.id)
-                obj.put("name", p.name)
-                obj.put("avatarEmoji", p.avatarEmoji)
-                obj.put("avatarBgColorHex", p.avatarBgColorHex)
-                obj.put("isKidsProfile", p.isKidsProfile)
+                obj.put("id", id)
+                obj.put("name", name)
+                obj.put("avatarEmoji", avatarEmoji)
+                obj.put("avatarBgColorHex", avatarBgColorHex)
+                obj.put("isKidsProfile", isKidsProfile)
 
                 val favArray = JSONArray()
-                for (f in p.favorites) favArray.put(f)
+                for (f in favorites) favArray.put(f)
                 obj.put("favorites", favArray)
 
                 val histArray = JSONArray()
-                for (h in p.watchHistory) {
+                for ((channelId, channelName, timestamp, durationSeconds) in watchHistory) {
                     val hObj = JSONObject()
-                    hObj.put("channelId", h.channelId)
-                    hObj.put("channelName", h.channelName)
-                    hObj.put("timestamp", h.timestamp)
-                    hObj.put("durationSeconds", h.durationSeconds)
+                    hObj.put("channelId", channelId)
+                    hObj.put("channelName", channelName)
+                    hObj.put("timestamp", timestamp)
+                    hObj.put("durationSeconds", durationSeconds)
                     histArray.put(hObj)
                 }
                 obj.put("watchHistory", histArray)
 
                 array.put(obj)
             }
-            prefs.edit().putString(KEY_PROFILES, array.toString()).apply()
+            prefs.edit { putString(KEY_PROFILES, array.toString()) }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -226,7 +227,7 @@ class ProfileRepository(private val context: Context) {
 
     fun setActiveProfile(profile: UserProfile) {
         _activeProfile.value = profile
-        prefs.edit().putString(KEY_ACTIVE_PROFILE_ID, profile.id).apply()
+        prefs.edit { putString(KEY_ACTIVE_PROFILE_ID, profile.id) }
         logActivity("Switched to Profile: ${profile.name}")
     }
 
@@ -246,15 +247,15 @@ class ProfileRepository(private val context: Context) {
         val current = _activeProfile.value ?: return
         val currentHistory = current.watchHistory.toMutableList()
         // Remove prior entry if existing to push to top
-        currentHistory.removeAll { it.channelId == channelId }
+        currentHistory.removeAll { (historyChannelId) -> historyChannelId == channelId }
         currentHistory.add(
             0,
             WatchHistoryEntry(
                 channelId = channelId,
                 channelName = channelName,
                 timestamp = System.currentTimeMillis(),
-                durationSeconds = durationSeconds
-            )
+                durationSeconds = durationSeconds,
+            ),
         )
         // Keep last 30
         val trimmed = currentHistory.take(30)
@@ -278,7 +279,7 @@ class ProfileRepository(private val context: Context) {
             name = name.trim().ifEmpty { "Family Member" },
             avatarEmoji = emoji,
             avatarBgColorHex = colorHex,
-            isKidsProfile = isKids
+            isKidsProfile = isKids,
         )
         val list = _profiles.value + newProfile
         _profiles.value = list
@@ -288,20 +289,20 @@ class ProfileRepository(private val context: Context) {
 
     fun deleteProfile(profileId: String) {
         if (_profiles.value.size <= 1) return // Keep at least one
-        val list = _profiles.value.filterNot { it.id == profileId }
+        val list = _profiles.value.filterNot { (id) -> id == profileId }
         _profiles.value = list
         if (_activeProfile.value?.id == profileId) {
             _activeProfile.value = list.first()
-            prefs.edit().putString(KEY_ACTIVE_PROFILE_ID, list.first().id).apply()
+            prefs.edit { putString(KEY_ACTIVE_PROFILE_ID, list.first().id) }
         }
         saveProfiles(list)
         logActivity("Deleted profile")
     }
 
     fun setParentalPin(newPin: String): Boolean {
-        if (newPin.length == 4 && newPin.all { it.isDigit() }) {
+        if ((newPin.length == 4) && newPin.all { it.isDigit() }) {
             _parentalPin.value = newPin
-            prefs.edit().putString(KEY_PARENTAL_PIN, newPin).apply()
+            prefs.edit { putString(KEY_PARENTAL_PIN, newPin) }
             logActivity("Parental PIN Updated")
             return true
         }
@@ -328,16 +329,7 @@ class ProfileRepository(private val context: Context) {
             logActivity("Channel Locked with Parental PIN", channelId)
         }
         _globallyLockedChannelIds.value = current
-        prefs.edit().putStringSet(KEY_LOCKED_CHANNELS_GLOBAL, current).apply()
-    }
-
-    fun isChannelLocked(channelId: String, isAdultOrRestricted: Boolean): Boolean {
-        val active = _activeProfile.value
-        // If profile is Kids, always lock adult/restricted or locked channels
-        if (active?.isKidsProfile == true) {
-            if (isAdultOrRestricted) return true
-        }
-        return _globallyLockedChannelIds.value.contains(channelId) || isAdultOrRestricted
+        prefs.edit { putStringSet(KEY_LOCKED_CHANNELS_GLOBAL, current) }
     }
 
     fun logActivity(action: String, channelName: String? = null) {
@@ -346,7 +338,7 @@ class ProfileRepository(private val context: Context) {
             profileName = _activeProfile.value?.name ?: "Guest",
             action = action,
             channelName = channelName,
-            timestamp = System.currentTimeMillis()
+            timestamp = System.currentTimeMillis(),
         )
         val updated = (listOf(log) + _activityLogs.value).take(100)
         _activityLogs.value = updated
@@ -356,16 +348,16 @@ class ProfileRepository(private val context: Context) {
     private fun saveActivityLogs(logs: List<ActivityLog>) {
         try {
             val array = JSONArray()
-            for (l in logs) {
+            for ((id, profileName, action, channelName, timestamp) in logs) {
                 val obj = JSONObject()
-                obj.put("id", l.id)
-                obj.put("profileName", l.profileName)
-                obj.put("action", l.action)
-                if (l.channelName != null) obj.put("channelName", l.channelName)
-                obj.put("timestamp", l.timestamp)
+                obj.put("id", id)
+                obj.put("profileName", profileName)
+                obj.put("action", action)
+                channelName?.let { obj.put("channelName", it) }
+                obj.put("timestamp", timestamp)
                 array.put(obj)
             }
-            prefs.edit().putString(KEY_ACTIVITY_LOGS, array.toString()).apply()
+            prefs.edit { putString(KEY_ACTIVITY_LOGS, array.toString()) }
         } catch (e: Exception) {
             e.printStackTrace()
         }

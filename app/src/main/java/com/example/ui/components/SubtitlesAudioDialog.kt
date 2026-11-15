@@ -1,6 +1,6 @@
 package com.example.ui.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -21,7 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.ui.theme.CyanNeon
 
 @Composable
 fun SubtitlesAudioDialog(
@@ -44,7 +42,7 @@ fun SubtitlesAudioDialog(
     onToggleSubtitles: (Boolean) -> Unit,
     onSelectSubtitle: (String) -> Unit,
     onSelectAudio: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
@@ -55,14 +53,14 @@ fun SubtitlesAudioDialog(
         "French (Français)",
         "German (Deutsch)",
         "Arabic (العربية)",
-        "Japanese (日本語)"
+        "Japanese (日本語)",
     )
 
     val audioOptions = listOf(
         "Original Audio (Stereo)",
         "English (5.1 Surround)",
         "Descriptive Audio (Accessibility)",
-        "Secondary Audio Program (SAP)"
+        "Secondary Audio Program (SAP)",
     )
 
     AlertDialog(
@@ -70,37 +68,37 @@ fun SubtitlesAudioDialog(
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.ClosedCaption,
                     contentDescription = null,
-                    tint = CyanNeon,
-                    modifier = Modifier.size(24.dp)
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp),
                 )
                 Text(
                     text = "Audio & Accessibility",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                TabRow(
+                PrimaryTabRow(
                     selectedTabIndex = selectedTab,
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = CyanNeon
+                    contentColor = MaterialTheme.colorScheme.primary,
                 ) {
                     Tab(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
-                        text = { Text("Subtitles") }
+                        text = { Text("Subtitles") },
                     )
                     Tab(
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
-                        text = { Text("Audio Track") }
+                        text = { Text("Audio Track") },
                     )
                 }
 
@@ -109,41 +107,44 @@ fun SubtitlesAudioDialog(
                 if (selectedTab == 0) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         subtitleOptions.forEach { option ->
-                            val isSelected = if (option == "Off") !subtitlesEnabled else (subtitlesEnabled && selectedSubtitle == option)
+                            val isSelected = if (option == "Off") !subtitlesEnabled else subtitlesEnabled && (selectedSubtitle == option)
 
                             Card(
                                 shape = RoundedCornerShape(8.dp),
                                 colors = CardDefaults.cardColors(
                                     containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                                    else MaterialTheme.colorScheme.surface
+                                    else MaterialTheme.colorScheme.surface,
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable {
+                                    .selectable(
+                                        selected = isSelected,
+                                        role = androidx.compose.ui.semantics.Role.RadioButton,
+                                    ) {
                                         if (option == "Off") {
                                             onToggleSubtitles(false)
                                         } else {
                                             onToggleSubtitles(true)
                                             onSelectSubtitle(option)
                                         }
-                                    }
+                                    },
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 8.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     RadioButton(
                                         selected = isSelected,
                                         onClick = null,
-                                        colors = RadioButtonDefaults.colors(selectedColor = CyanNeon)
+                                        colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary),
                                     )
                                     Text(
                                         text = option,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
                             }
@@ -158,28 +159,31 @@ fun SubtitlesAudioDialog(
                                 shape = RoundedCornerShape(8.dp),
                                 colors = CardDefaults.cardColors(
                                     containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                                    else MaterialTheme.colorScheme.surface
+                                    else MaterialTheme.colorScheme.surface,
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable { onSelectAudio(option) }
+                                    .selectable(
+                                        selected = isSelected,
+                                        role = androidx.compose.ui.semantics.Role.RadioButton,
+                                    ) { onSelectAudio(option) },
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 8.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     RadioButton(
                                         selected = isSelected,
                                         onClick = null,
-                                        colors = RadioButtonDefaults.colors(selectedColor = CyanNeon)
+                                        colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary),
                                     )
                                     Text(
                                         text = option,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
                             }
@@ -192,6 +196,6 @@ fun SubtitlesAudioDialog(
             TextButton(onClick = onDismiss) {
                 Text("Done")
             }
-        }
+        },
     )
 }

@@ -1,5 +1,8 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,67 +15,55 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.Channel
 import com.example.data.model.ChannelGenre
 import com.example.ui.components.ChannelCard
-import com.example.ui.components.EpgGridComponent
-import androidx.compose.foundation.clickable
-import com.example.ui.theme.CyanNeon
-import com.example.ui.theme.SkeuoButton
-import com.example.ui.theme.SkeuoJewelLed
-import com.example.ui.theme.SkeuoPhosphorCyan
-import com.example.ui.theme.skeuomorphicPanel
-import com.example.ui.theme.skeuomorphicWell
+import com.example.ui.theme.LocalAppThemeColors
+import com.example.ui.viewmodel.RegionItem
 import com.example.ui.viewmodel.TVViewModel
 
 @Composable
 fun ChannelsScreen(
     viewModel: TVViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val filteredChannels by viewModel.filteredChannels.collectAsState()
     val currentChannel by viewModel.currentChannel.collectAsState()
-    val currentProgramsMap by viewModel.currentProgramsMap.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedGenre by viewModel.selectedGenre.collectAsState()
     val selectedCountry by viewModel.selectedCountryFilter.collectAsState()
     val selectedLanguage by viewModel.selectedLanguage.collectAsState()
-
-    var isEpgViewActive by remember { mutableStateOf(false) }
+    val channelSortOrder by viewModel.channelSortOrder.collectAsState()
 
     val regions = viewModel.availableRegions
     val genres = remember { ChannelGenre.entries.map { it.displayName } }
@@ -81,79 +72,54 @@ fun ChannelsScreen(
     val brokenChannelIds by viewModel.brokenChannelIds.collectAsState()
     val selectedSubcategory by viewModel.selectedSubcategory.collectAsState()
     val subcategories = remember(selectedGenre) { viewModel.getSubcategoriesForGenre(selectedGenre) }
+    val (_, _, socketBg, socketBorder) = LocalAppThemeColors.current
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .testTag("channels_screen_root")
+            .testTag("channels_screen_root"),
     ) {
-        // Redesigned User-Friendly Search Bar & Filter Header
+        // Redesigned Material You Search Bar & Filter Header
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Debossed Skeuomorphic Search Socket
+                // Search Input Box (Adaptive socket container)
                 Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .skeuomorphicWell(cornerRadius = 12.dp)
-                        .clickable { viewModel.openFullScreenSearch() }
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(socketBg)
+                        .border(1.dp, socketBorder, RoundedCornerShape(12.dp))
+                        .clickable(role = androidx.compose.ui.semantics.Role.Button) { viewModel.openFullScreenSearch() }
                         .padding(horizontal = 14.dp, vertical = 12.dp)
-                        .testTag("channels_search_input")
+                        .testTag("channels_search_input"),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = CyanNeon,
-                            modifier = Modifier.size(20.dp)
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = if (searchQuery.isNotBlank()) searchQuery else "Search 12,800+ live channels...",
-                            color = if (searchQuery.isNotBlank()) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = searchQuery.ifBlank { "Search live channels..." },
+                            color = if (searchQuery.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
-                        SkeuoButton(
-                            onClick = { viewModel.openFullScreenSearch() },
-                            cornerRadius = 6.dp
-                        ) {
-                            Text(
-                                text = "TUNER 🔍",
-                                color = CyanNeon,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
                     }
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Toggle between Channel List and EPG Guide Grid (Tactile 3D SkeuoButton)
-                SkeuoButton(
-                    onClick = { isEpgViewActive = !isEpgViewActive },
-                    isAccent = isEpgViewActive,
-                    cornerRadius = 12.dp,
-                    modifier = Modifier.size(46.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isEpgViewActive) Icons.AutoMirrored.Filled.ViewList else Icons.Default.CalendarMonth,
-                        contentDescription = if (isEpgViewActive) "Channel List" else "EPG Guide",
-                        tint = if (isEpgViewActive) Color(0xFF00363D) else MaterialTheme.colorScheme.onSurface
-                    )
                 }
             }
 
@@ -162,26 +128,26 @@ fun ChannelsScreen(
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = CyanNeon.copy(alpha = 0.12f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, CyanNeon.copy(alpha = 0.3f)),
-                    modifier = Modifier.fillMaxWidth()
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
                             text = "Found ${filteredChannels.size} channels for \"$searchQuery\"",
-                            color = CyanNeon,
+                            color = MaterialTheme.colorScheme.primary,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                         androidx.compose.material3.TextButton(
                             onClick = { viewModel.setSearchQuery("") },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                         ) {
                             Text("Clear", color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp)
                         }
@@ -194,36 +160,39 @@ fun ChannelsScreen(
                 // Regions Filter Row (20+ Worldwide Countries)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(
                         imageVector = Icons.Default.FilterList,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(end = 8.dp).size(18.dp)
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .size(18.dp),
                     )
 
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
-                        items(regions, key = { it.code }) { region ->
-                            val isSelected = selectedCountry == region.code
+                        items(regions, key = RegionItem::code) { (code, name, flag) ->
+                            val isSelected = selectedCountry == code
                             FilterChip(
                                 selected = isSelected,
-                                onClick = { viewModel.selectCountry(region.code) },
+                                onClick = { viewModel.selectCountry(code) },
                                 label = {
                                     Text(
-                                        text = "${region.flag} ${region.name}",
+                                        text = "$flag $name",
                                         fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     )
                                 },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = CyanNeon,
-                                    selectedLabelColor = Color(0xFF00363D),
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                )
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
                             )
                         }
                     }
@@ -234,9 +203,9 @@ fun ChannelsScreen(
                 // Worldwide Categories / Genres Row
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    items(genres) { genreName ->
+                    items(genres, key = { it }) { genreName ->
                         val isSelected = selectedGenre == genreName
                         FilterChip(
                             selected = isSelected,
@@ -247,43 +216,45 @@ fun ChannelsScreen(
                             label = { Text(genreName, fontSize = 11.sp) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.secondary,
-                                selectedLabelColor = Color.White,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                            )
+                                selectedLabelColor = MaterialTheme.colorScheme.onSecondary,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Subcategories Row (Requested by user)
+                // Subcategories Row
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    items(subcategories) { sub ->
+                    items(subcategories, key = { it }) { sub ->
                         val isSelected = selectedSubcategory == sub
                         FilterChip(
                             selected = isSelected,
                             onClick = { viewModel.selectSubcategory(sub) },
                             label = { Text(sub, fontSize = 10.sp) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFF06B6D4),
-                                selectedLabelColor = Color(0xFF00363D),
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                            )
+                                selectedContainerColor = MaterialTheme.colorScheme.tertiary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onTertiary,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Worldwide Languages Filter Row (18+ Languages)
+                // Worldwide Languages Filter Row (83 Languages)
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    items(languages) { lang ->
+                    items(languages, key = { it }) { lang ->
                         val isSelected = selectedLanguage == lang
                         FilterChip(
                             selected = isSelected,
@@ -291,41 +262,81 @@ fun ChannelsScreen(
                             label = { Text(if (lang == "ALL") "All Languages" else lang, fontSize = 11.sp) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = Color.White,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                            )
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
                         )
                     }
                 }
             }
         }
 
-        // Channels Counter and Active Filters Bar
+        // Native Ad in Channels Tab (ca-app-pub-2382308752605431/8291602645)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+        ) {
+            com.example.util.AdNativeView(adUnitId = com.example.util.AdManager.CHANNELS_NATIVE_AD_ID)
+        }
+
+        // Channels Counter, A-Z Sort Toggle, and Active Filters Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "${filteredChannels.size} Channels Found",
+                text = "${filteredChannels.size} Channels",
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                // Interactive A to Z / Z to A sort toggle chip
+                FilterChip(
+                    selected = true,
+                    onClick = { viewModel.toggleChannelSortOrder() },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = "Sort Direction",
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = channelSortOrder.label,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                    modifier = Modifier.testTag("channels_sort_chip"),
+                )
+
                 if (selectedCountry != "ALL") {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                     ) {
                         Text(
                             text = "Region: $selectedCountry",
-                            color = CyanNeon,
+                            color = MaterialTheme.colorScheme.primary,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                 }
@@ -333,91 +344,111 @@ fun ChannelsScreen(
                 if (selectedGenre != ChannelGenre.ALL.displayName) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
                     ) {
                         Text(
                             text = selectedGenre,
                             color = MaterialTheme.colorScheme.secondary,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+
+                if (selectedSubcategory != "ALL") {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+                    ) {
+                        Text(
+                            text = selectedSubcategory,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        )
+                    }
+                }
+
+                if (selectedLanguage != "ALL") {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    ) {
+                        Text(
+                            text = selectedLanguage,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                 }
             }
         }
 
-        if (isEpgViewActive) {
-            // Full Electronic Program Guide (EPG) Grid View
-            EpgGridComponent(
-                viewModel = viewModel,
+        // Channels List View (Fast & direct rendering)
+        if (filteredChannels.isEmpty()) {
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 80.dp)
-            )
-        } else {
-            // Channels List View (Fast & direct rendering)
-            if (filteredChannels.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = CyanNeon,
-                            modifier = Modifier.size(44.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "No channels match your filter",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Try clearing search keywords or switching category/region filters.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Button(
-                            onClick = {
-                                viewModel.setSearchQuery("")
-                                viewModel.selectGenre(ChannelGenre.ALL.displayName)
-                                viewModel.selectCountry("ALL")
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = CyanNeon),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Reset All Filters", color = Color(0xFF00363D), fontWeight = FontWeight.Bold)
-                        }
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(44.dp),
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "No channels match your filter",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Try clearing search keywords or switching category/region filters.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Button(
+                        onClick = { viewModel.resetAllFilters() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                    ) {
+                        Text("Reset All Filters", fontWeight = FontWeight.Bold)
                     }
                 }
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(bottom = 80.dp)
-                ) {
-                    items(filteredChannels, key = { it.id }) { channel ->
-                        ChannelCard(
-                            channel = channel,
-                            isSelected = currentChannel?.id == channel.id,
-                            currentProgram = currentProgramsMap[channel.id],
-                            isLive = !brokenChannelIds.contains(channel.id),
-                            isBroken = brokenChannelIds.contains(channel.id),
-                            onSelect = { viewModel.playChannel(channel) },
-                            onToggleFavorite = { viewModel.toggleFavorite(channel.id) },
-                            onOpenSchedule = { viewModel.openChannelSchedule(channel) }
-                        )
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 360.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            ) {
+                items(items = filteredChannels, key = Channel::id) { channel ->
+                    ChannelCard(
+                        channel = channel,
+                        isSelected = currentChannel?.id == channel.id,
+                        isLive = !brokenChannelIds.contains(channel.id),
+                        isBroken = brokenChannelIds.contains(channel.id),
+                        onSelect = { viewModel.playChannel(channel) },
+                    ) {
+                        viewModel.toggleFavorite(channel.id)
                     }
                 }
             }

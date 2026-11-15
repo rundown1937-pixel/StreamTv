@@ -1,21 +1,33 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Project specific ProGuard / R8 DEX optimization and keep rules
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Optimize DEX bytecode aggressively
+-optimizationpasses 5
+-allowaccessmodification
+-repackageclasses 'o'
+-overloadaggressively
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Strip verbose/debug logging in release builds to shrink DEX size and improve runtime speed
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Preserve Room Entities (fields & constructors accessed by generated Room adapters)
+-keep @androidx.room.Entity class com.example.data.local.** { *; }
+-keep @androidx.room.Database class com.example.data.local.** { *; }
+
+# Preserve Moshi annotated fields and generated adapters
+-keepclassmembers class * {
+    @com.squareup.moshi.Json *;
+}
+-keep class **JsonAdapter {
+    public <init>(com.squareup.moshi.Moshi);
+}
+
+# Suppress harmless optional warnings from OkHttp / Conscrypt / Retrofit
+-dontwarn okhttp3.internal.platform.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**

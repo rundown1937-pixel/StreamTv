@@ -3,6 +3,7 @@ package com.example.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,12 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChildCare
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -36,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,7 +49,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.UserProfile
-import com.example.ui.theme.CyanNeon
 
 @Composable
 fun ProfileSwitchDialog(
@@ -58,16 +56,16 @@ fun ProfileSwitchDialog(
     activeProfile: UserProfile?,
     onSelectProfile: (UserProfile) -> Unit,
     onCreateProfile: (name: String, emoji: String, isKids: Boolean, colorHex: Long) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
-    var isCreatingNew by remember { mutableStateOf(false) }
+    var isCreatingNew by remember { mutableStateOf(value = false) }
     var newName by remember { mutableStateOf("") }
     var selectedEmoji by remember { mutableStateOf("🚀") }
-    var isKidsMode by remember { mutableStateOf(false) }
+    var isKidsMode by remember { mutableStateOf(value = false) }
 
     val emojis = listOf("🎬", "🦁", "🍿", "⚡", "🚀", "🎮", "🌟", "🎧", "📺", "⚽")
-    val avatarColors = listOf(0xFF6366F1, 0xFF10B981, 0xFFF59E0B, 0xFFEF4444, 0xFF00E5FF, 0xFF8B5CF6)
-    var selectedColor by remember { mutableStateOf(avatarColors[0]) }
+    val avatarColors = listOf(0xFF2C2C2C, 0xFF383838, 0xFF444444, 0xFF505050, 0xFF616161, 0xFF757575)
+    var selectedColor by remember { mutableLongStateOf(avatarColors[0]) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -75,7 +73,7 @@ fun ProfileSwitchDialog(
             Text(
                 text = if (isCreatingNew) "Add Household Profile" else "Switch Profile",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
             )
         },
         text = {
@@ -84,14 +82,14 @@ fun ProfileSwitchDialog(
                     Text(
                         text = "Personalized favorites, watch history, and recommendations:",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         items(profiles) { profile ->
                             val isSelected = activeProfile?.id == profile.id
@@ -101,12 +99,15 @@ fun ProfileSwitchDialog(
                                 modifier = Modifier
                                     .width(76.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .clickable {
+                                    .selectable(
+                                        selected = isSelected,
+                                        role = androidx.compose.ui.semantics.Role.RadioButton,
+                                    ) {
                                         onSelectProfile(profile)
                                         onDismiss()
                                     }
                                     .padding(4.dp)
-                                    .testTag("profile_item_${profile.id}")
+                                    .testTag("profile_item_${profile.id}"),
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -115,27 +116,27 @@ fun ProfileSwitchDialog(
                                         .background(Color(profile.avatarBgColorHex))
                                         .border(
                                             width = if (isSelected) 3.dp else 0.dp,
-                                            color = if (isSelected) CyanNeon else Color.Transparent,
-                                            shape = CircleShape
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                            shape = CircleShape,
                                         ),
-                                    contentAlignment = Alignment.Center
+                                    contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
                                         text = profile.avatarEmoji,
-                                        fontSize = 26.sp
+                                        fontSize = 26.sp,
                                     )
 
                                     if (isSelected) {
                                         Box(
                                             modifier = Modifier
                                                 .matchParentSize()
-                                                .background(Color.Black.copy(alpha = 0.25f))
+                                                .background(Color.Black.copy(alpha = 0.25f)),
                                         )
                                         Icon(
                                             imageVector = Icons.Default.Check,
                                             contentDescription = "Selected",
                                             tint = Color.White,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(20.dp),
                                         )
                                     }
                                 }
@@ -146,24 +147,24 @@ fun ProfileSwitchDialog(
                                     text = profile.name,
                                     fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurface,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center
+                                    textAlign = TextAlign.Center,
                                 )
 
                                 if (profile.isKidsProfile) {
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
                                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                        modifier = Modifier.padding(top = 2.dp)
+                                        modifier = Modifier.padding(top = 2.dp),
                                     ) {
                                         Text(
                                             text = "KIDS",
                                             fontSize = 9.sp,
-                                            color = CyanNeon,
+                                            color = MaterialTheme.colorScheme.primary,
                                             fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                                         )
                                     }
                                 }
@@ -177,22 +178,22 @@ fun ProfileSwitchDialog(
                                 modifier = Modifier
                                     .width(76.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .clickable { isCreatingNew = true }
+                                    .clickable(role = androidx.compose.ui.semantics.Role.Button) { isCreatingNew = true }
                                     .padding(4.dp)
-                                    .testTag("add_profile_button")
+                                    .testTag("add_profile_button"),
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .size(56.dp)
                                         .clip(CircleShape)
                                         .background(MaterialTheme.colorScheme.surfaceVariant),
-                                    contentAlignment = Alignment.Center
+                                    contentAlignment = Alignment.Center,
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Add,
                                         contentDescription = "Add Profile",
-                                        tint = CyanNeon,
-                                        modifier = Modifier.size(28.dp)
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(28.dp),
                                     )
                                 }
 
@@ -201,7 +202,7 @@ fun ProfileSwitchDialog(
                                 Text(
                                     text = "Add New",
                                     fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -211,7 +212,7 @@ fun ProfileSwitchDialog(
                 // Form to create profile
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     OutlinedTextField(
                         value = newName,
@@ -221,13 +222,13 @@ fun ProfileSwitchDialog(
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .testTag("new_profile_name_input")
+                            .testTag("new_profile_name_input"),
                     )
 
                     Text(
                         text = "Choose Avatar:",
                         style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -235,9 +236,9 @@ fun ProfileSwitchDialog(
                             Surface(
                                 onClick = { selectedEmoji = emoji },
                                 shape = CircleShape,
-                                color = if (selectedEmoji == emoji) CyanNeon.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surfaceVariant,
-                                border = if (selectedEmoji == emoji) androidx.compose.foundation.BorderStroke(2.dp, CyanNeon) else null,
-                                modifier = Modifier.size(42.dp)
+                                color = if (selectedEmoji == emoji) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surfaceVariant,
+                                border = if (selectedEmoji == emoji) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+                                modifier = Modifier.size(42.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(text = emoji, fontSize = 20.sp)
@@ -249,26 +250,26 @@ fun ProfileSwitchDialog(
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Column {
                             Text(
                                 text = "Kids Mode",
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
                             )
                             Text(
                                 text = "Restricts adult content & locks",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
 
                         Switch(
                             checked = isKidsMode,
                             onCheckedChange = { isKidsMode = it },
-                            colors = SwitchDefaults.colors(checkedThumbColor = CyanNeon),
-                            modifier = Modifier.testTag("kids_mode_toggle")
+                            colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.testTag("kids_mode_toggle"),
                         )
                     }
                 }
@@ -284,10 +285,10 @@ fun ProfileSwitchDialog(
                             onDismiss()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = CyanNeon),
-                    modifier = Modifier.testTag("save_new_profile_button")
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.testTag("save_new_profile_button"),
                 ) {
-                    Text("Save Profile", color = Color(0xFF00363D), fontWeight = FontWeight.Bold)
+                    Text("Save Profile", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                 }
             } else {
                 TextButton(onClick = onDismiss) {
@@ -301,6 +302,6 @@ fun ProfileSwitchDialog(
                     Text("Back")
                 }
             }
-        }
+        },
     )
 }

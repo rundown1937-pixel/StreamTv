@@ -4,14 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.CastConnected
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Wifi
@@ -31,28 +28,22 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.CyanNeon
-import com.example.ui.theme.EmeraldSuccess
 
 @Composable
 fun CastDialog(
     isCastingActive: Boolean,
-    onToggleCastMode: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
 
@@ -61,48 +52,48 @@ fun CastDialog(
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = CyanNeon.copy(alpha = 0.2f),
-                    modifier = Modifier.size(36.dp)
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                    modifier = Modifier.size(36.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Cast,
                             contentDescription = null,
-                            tint = CyanNeon,
-                            modifier = Modifier.size(20.dp)
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
                         )
                     }
                 }
                 Text(
                     text = "Screen Cast & Wireless Display",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
                     text = "Cast live channels and video streams directly to your Smart TV, Android TV, Google Cast, or Miracast wireless display.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 // Current Cast status card
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isCastingActive) CyanNeon.copy(alpha = 0.15f)
-                        else MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = if (isCastingActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        else MaterialTheme.colorScheme.surfaceVariant,
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Row(
                         modifier = Modifier
@@ -113,7 +104,7 @@ fun CastDialog(
                         Icon(
                             imageVector = if (isCastingActive) Icons.Default.CastConnected else Icons.Default.Tv,
                             contentDescription = null,
-                            tint = if (isCastingActive) CyanNeon else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isCastingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(28.dp)
                         )
 
@@ -143,7 +134,7 @@ fun CastDialog(
                         onDismiss()
                     },
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CyanNeon),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("open_system_cast_button")
@@ -151,13 +142,13 @@ fun CastDialog(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = "Open Settings",
-                        tint = Color(0xFF00363D),
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Open System Screen Cast",
-                        color = Color(0xFF00363D),
+                        color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
@@ -201,20 +192,20 @@ private fun openSystemCastSettings(context: Context) {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
         context.startActivity(intent)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         try {
             // Fallback for devices without standard cast intent
             val fallback = Intent("android.settings.WIFI_DISPLAY_SETTINGS").apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             context.startActivity(fallback)
-        } catch (e2: Exception) {
+        } catch (_: Exception) {
             try {
                 val wirelessSettings = Intent(Settings.ACTION_WIRELESS_SETTINGS).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
                 context.startActivity(wirelessSettings)
-            } catch (e3: Exception) {
+            } catch (_: Exception) {
                 Toast.makeText(context, "Please enable Cast or Screen Mirroring in Quick Settings", Toast.LENGTH_LONG).show()
             }
         }

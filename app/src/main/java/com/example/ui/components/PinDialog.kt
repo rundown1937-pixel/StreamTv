@@ -11,18 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,13 +29,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.CyanNeon
 import com.example.ui.theme.LiveRed
 
 @Composable
@@ -48,7 +41,7 @@ fun PinDialog(
     title: String = "Parental Control Lock",
     subtitle: String = "Enter your 4-digit PIN to continue",
     onDismiss: () -> Unit,
-    onVerify: (String) -> Boolean
+    onVerify: (String) -> Boolean,
 ) {
     var pin by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -58,31 +51,31 @@ fun PinDialog(
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.Lock,
                     contentDescription = null,
-                    tint = Color(0xFFFBBF24),
-                    modifier = Modifier.size(24.dp)
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(24.dp),
                 )
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -90,7 +83,7 @@ fun PinDialog(
                 // PIN dots indicators
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     for (i in 0 until 4) {
                         val isFilled = i < pin.length
@@ -99,13 +92,13 @@ fun PinDialog(
                                 .size(18.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    if (isFilled) CyanNeon else MaterialTheme.colorScheme.surfaceVariant
+                                    if (isFilled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                 )
                                 .border(
                                     width = 1.5.dp,
-                                    color = if (isFilled) CyanNeon else MaterialTheme.colorScheme.outline,
-                                    shape = CircleShape
-                                )
+                                    color = if (isFilled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                    shape = CircleShape,
+                                ),
                         )
                     }
                 }
@@ -116,7 +109,7 @@ fun PinDialog(
                         text = errorMessage!!,
                         color = LiveRed,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
 
@@ -127,13 +120,13 @@ fun PinDialog(
                     listOf("1", "2", "3"),
                     listOf("4", "5", "6"),
                     listOf("7", "8", "9"),
-                    listOf("C", "0", "DEL")
+                    listOf("C", "0", "DEL"),
                 )
 
                 for (row in rows) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
                         for (key in row) {
                             Surface(
@@ -166,7 +159,7 @@ fun PinDialog(
                                 modifier = Modifier
                                     .size(54.dp)
                                     .padding(4.dp)
-                                    .testTag("keypad_$key")
+                                    .testTag("keypad_$key"),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     if (key == "DEL") {
@@ -174,14 +167,14 @@ fun PinDialog(
                                             imageVector = Icons.AutoMirrored.Filled.Backspace,
                                             contentDescription = "Backspace",
                                             tint = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(18.dp),
                                         )
                                     } else {
                                         Text(
                                             text = key,
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            color = MaterialTheme.colorScheme.onSurface,
                                         )
                                     }
                                 }
@@ -195,17 +188,17 @@ fun PinDialog(
                 Text(
                     text = "Tip: Default parental PIN is 1234",
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    fontSize = 11.sp
+                    fontSize = 11.sp,
                 )
             }
         },
         confirmButton = {
             TextButton(
                 onClick = onDismiss,
-                modifier = Modifier.testTag("pin_cancel_button")
+                modifier = Modifier.testTag("pin_cancel_button"),
             ) {
                 Text("Cancel")
             }
-        }
+        },
     )
 }

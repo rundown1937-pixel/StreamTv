@@ -1,3 +1,63 @@
 <resources>
+    <!-- Application Identity -->
     <string name="app_name">StreamPulse TV</string>
+    <string name="app_tagline">Worldwide Live IPTV &amp; Broadcast Engine</string>
+
+    <!-- Navigation Tabs -->
+    <string name="nav_live">Live</string>
+    <string name="nav_favorites">Favorites</string>
+    <string name="nav_channels">Channels</string>
+    <string name="nav_guide">TV Guide</string>
+    <string name="nav_offline">Offline</string>
+    <string name="nav_profiles">Profiles</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Controls & Actions -->
+    <string name="action_play">Play</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_search">Search live channels, genres…</string>
+    <string name="action_clear_search">Clear search</string>
+    <string name="action_filter">Filter</string>
+    <string name="action_cast">Screen Cast</string>
+    <string name="action_parental_controls">Parental Controls</string>
+    <string name="action_watch_reward">Watch Reward Ad</string>
+    <string name="action_toggle_favorite">Favorite</string>
+    <string name="action_enter_pip">Picture in Picture</string>
+    <string name="action_fullscreen">Fullscreen</string>
+    <string name="action_enter_player">Enter Player Now</string>
+    <string name="action_sort_az">A → Z</string>
+    <string name="action_sort_za">Z → A</string>
+
+    <!-- Status Indicators -->
+    <string name="status_live">LIVE</string>
+    <string name="status_offline">OFFLINE</string>
+    <string name="status_on_air">ON AIR</string>
+    <string name="status_loading">Loading Channels…</string>
+    <string name="status_verified_channels">Verified %1$d Channels Ready</string>
+
+    <!-- Content Sections -->
+    <string name="section_recently_watched">Recently Watched</string>
+    <string name="section_quick_resume">Quick Resume</string>
+    <string name="section_tailored_for_you">Tailored For You</string>
+    <string name="section_family_picks">Master Family\'s Picks</string>
+    <string name="section_all_channels">All Channels (%1$d)</string>
+
+    <!-- Dialogs & Prompts -->
+    <string name="permission_local_network_title">Local network access</string>
+    <string name="permission_local_network_msg">StreamPulse needs local network access for IPTV streams and playlists hosted on your Wi-Fi network.</string>
+    <string name="btn_continue">Continue</string>
+    <string name="btn_not_now">Not now</string>
+    <string name="btn_open_settings">Open settings</string>
+    <string name="ad_install">Install</string>
+
+    <!-- Accessibility / Content Descriptions -->
+    <string name="cd_logo">StreamPulse TV Logo</string>
+    <string name="cd_search">Search Channels</string>
+    <string name="cd_cast">Cast Stream to TV</string>
+    <string name="cd_security">Parental Security Settings</string>
+    <string name="cd_reward_ad">Earn Reward by Watching Ad</string>
+    <string name="cd_play">Play Stream</string>
+    <string name="cd_favorite">Add to Favorites</string>
+    <string name="cd_close">Close</string>
 </resources>

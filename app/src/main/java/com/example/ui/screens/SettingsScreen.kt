@@ -1,6 +1,11 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import androidx.core.net.toUri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,13 +15,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.example.ui.theme.AppThemeMode
+import com.example.ui.theme.LocalAppThemeColors
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.ClosedCaption
@@ -28,9 +38,15 @@ import androidx.compose.material.icons.filled.NoAdultContent
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -38,24 +54,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.CyanNeon
 import com.example.ui.theme.EmeraldSuccess
-import com.example.ui.theme.SkeuoAmberGlow
-import com.example.ui.theme.SkeuoButton
-import com.example.ui.theme.SkeuoEmeraldLed
-import com.example.ui.theme.SkeuoJewelLed
-import com.example.ui.theme.SkeuoRubyLed
-import com.example.ui.theme.SkeuoScrew
-import com.example.ui.theme.skeuomorphicPanel
-import com.example.ui.theme.skeuomorphicWell
 import com.example.ui.viewmodel.PlaybackQuality
 import com.example.ui.viewmodel.TVViewModel
 import com.example.util.AppLanguage
@@ -69,25 +81,25 @@ fun SettingsScreen(
     viewModel: TVViewModel,
     onOpenParentalSettings: () -> Unit,
     onOpenSubtitlesDialog: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val isAutoUpdateEnabled by viewModel.playlistRepo.isAutoUpdateEnabled.collectAsState()
-    val updateIntervalHours by viewModel.playlistRepo.updateIntervalHours.collectAsState()
+    val context = LocalContext.current
     val lastSyncTimestamp by viewModel.playlistRepo.lastSyncTimestamp.collectAsState()
     val isSyncing by viewModel.playlistRepo.isSyncing.collectAsState()
+    val isPlaylistAutoUpdateEnabled by viewModel.playlistRepo.isAutoUpdateEnabled.collectAsState()
+    val playlistUpdateIntervalHours by viewModel.playlistRepo.updateIntervalHours.collectAsState()
     val syncMessage by viewModel.playlistRepo.syncMessage.collectAsState()
     val totalChannels by viewModel.playlistRepo.channels.collectAsState()
     val playbackQuality by viewModel.playbackQuality.collectAsState()
     val isAdultRestrictionEnabled by viewModel.isAdultRestrictionEnabled.collectAsState()
-    val storageMetrics by viewModel.storageMetrics.collectAsState()
+    val (offlineChannelsCount, historyEntriesCount, totalCacheSizeMb) =
+        viewModel.storageMetrics.collectAsState().value
     val currentAppLanguage by viewModel.appInterfaceLanguage.collectAsState()
-    val appStrings = LocalAppStrings.current
-    val isKarateChopEnabled by viewModel.isKarateChopEnabled.collectAsState()
-    val chopCount by viewModel.karateChopDetectedCount.collectAsState()
-    val chopForce by viewModel.karateChopLiveForce.collectAsState()
-    val chopBanner by viewModel.karateChopBannerMessage.collectAsState()
+    val currentAppTheme by viewModel.appThemeMode.collectAsState()
+    val (cardBg, cardBorder, socketBg, socketBorder, buttonBg) = LocalAppThemeColors.current
+    var showLanguageCardsDialog by remember { mutableStateOf(value = false) }
 
-    val sdf = SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault())
+    val sdf = SimpleDateFormat("MMM d, yyyy • h:mm a", LocalLocale.current.platformLocale)
     val lastSyncStr = if (lastSyncTimestamp > 0) sdf.format(Date(lastSyncTimestamp)) else "Just now"
 
     LazyColumn(
@@ -95,44 +107,34 @@ fun SettingsScreen(
             .fillMaxSize()
             .testTag("settings_screen_column"),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Master Live Channel Feed Status Rack Module
+        // Group 1: Live Channel Feed & Sync Settings
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(cardBg)
+                    .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+                    .padding(16.dp),
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    // Studio Chassis Top Bar
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 15f)
-                        SkeuoJewelLed(isActive = true, color = SkeuoEmeraldLed, label = "RACK #01")
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 110f)
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Surface(
-                            shape = CircleShape,
-                            color = CyanNeon.copy(alpha = 0.2f),
-                            modifier = Modifier.size(40.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(42.dp),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.LiveTv,
                                     contentDescription = null,
-                                    tint = CyanNeon,
-                                    modifier = Modifier.size(22.dp)
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp),
                                 )
                             }
                         }
@@ -142,662 +144,633 @@ fun SettingsScreen(
                                 text = "Live Channel Feed",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = "Official Master IPTV Network (12,000+ Channels)",
+                                text = "Official Global Stream Network",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
 
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = EmeraldSuccess.copy(alpha = 0.15f)
+                            shape = RoundedCornerShape(8.dp),
+                            color = EmeraldSuccess.copy(alpha = 0.15f),
                         ) {
                             Text(
-                                text = "CONNECTED",
+                                text = "Connected",
                                 color = EmeraldSuccess,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Debossed metrics socket
-                    Box(
+                    // Feed Details
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .skeuomorphicWell(cornerRadius = 10.dp)
-                            .padding(12.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(socketBg)
+                            .border(1.dp, socketBorder, RoundedCornerShape(12.dp))
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Auto-Update on Launch:",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "Enabled • Every App Open",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = CyanNeon,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Channels Available:",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "${totalChannels.size} live streams",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    text = "Automatic Updates",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (isPlaylistAutoUpdateEnabled) {
+                                        "Every $playlistUpdateIntervalHours hours"
+                                    } else {
+                                        "Disabled"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isPlaylistAutoUpdateEnabled) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
+                            Switch(
+                                checked = isPlaylistAutoUpdateEnabled,
+                                onCheckedChange = { enabled ->
+                                    viewModel.playlistRepo.setAutoUpdate(
+                                        enabled,
+                                        playlistUpdateIntervalHours,
+                                    )
+                                },
+                                colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary),
+                                modifier = Modifier.testTag("playlist_auto_update_switch"),
+                            )
+                        }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Last Synced:",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = lastSyncStr,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = "Channels Available:",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = "${totalChannels.size} live streams",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = "Last Synced:",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = lastSyncStr,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Update Feed Tactile Skeuomorphic Button
-                    SkeuoButton(
+                    // Update Feed Button
+                    Surface(
                         onClick = { if (!isSyncing) viewModel.triggerManualSync() },
-                        isAccent = true,
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp)
-                            .testTag("refresh_channel_feed_btn")
+                            .testTag("refresh_channel_feed_btn"),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            horizontalArrangement = Arrangement.Center,
                         ) {
                             if (isSyncing) {
-                                CircularProgressIndicator(color = Color(0xFF00363D), modifier = Modifier.size(16.dp))
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Updating Channel Feed...", color = Color(0xFF00363D), fontWeight = FontWeight.Bold)
+                                Text("Updating Channels...", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                             } else {
-                                Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = Color(0xFF00363D), modifier = Modifier.size(18.dp))
+                                Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Update Channel Feed Now", color = Color(0xFF00363D), fontWeight = FontWeight.Bold)
+                                Text("Update Channel Feed Now", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
 
                     if (syncMessage != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = syncMessage!!,
-                            color = if (syncMessage!!.contains("success", ignoreCase = true)) EmeraldSuccess else CyanNeon,
+                            color = if (syncMessage!!.contains("success", ignoreCase = true)) EmeraldSuccess else MaterialTheme.colorScheme.primary,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
                         )
                     }
                 }
             }
         }
 
-        // App Interface Language Selector
+        // Group 2: App Updates (GitHub)
         item {
+            val appUpdateStatus by viewModel.appUpdateStatus.collectAsState()
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
-                    .testTag("app_language_selector_card")
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(cardBg)
+                    .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+                    .padding(16.dp)
+                    .testTag("app_github_update_card"),
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 45f)
-                        SkeuoJewelLed(isActive = true, color = SkeuoAmberGlow, label = "I18N")
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 135f)
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Surface(
-                            shape = CircleShape,
-                            color = CyanNeon.copy(alpha = 0.2f),
-                            modifier = Modifier.size(40.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.size(42.dp),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Default.Language,
-                                    contentDescription = null,
-                                    tint = CyanNeon,
-                                    modifier = Modifier.size(22.dp)
+                                    imageVector = Icons.Default.SystemUpdate,
+                                    contentDescription = "App Update",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(22.dp),
                                 )
                             }
                         }
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = appStrings.languageSelectorTitle,
+                                text = "App Updates",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = "Current: ${currentAppLanguage.displayName} (${currentAppLanguage.nativeName})",
+                                text = "v${com.example.BuildConfig.VERSION_NAME} (Build ${com.example.BuildConfig.VERSION_CODE})",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+
+                        if (appUpdateStatus is com.example.data.repository.AppUpdateStatus.UpdateAvailable) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                            ) {
+                                Text(
+                                    text = "Update Available",
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    // Update Status text
+                    when (val status = appUpdateStatus) {
+                        is com.example.data.repository.AppUpdateStatus.Idle -> {
+                            Text(
+                                text = "Check GitHub for the latest StreamPulse TV releases.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        is com.example.data.repository.AppUpdateStatus.Checking -> {
+                            Text(
+                                text = "Connecting to GitHub Releases API...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+                        is com.example.data.repository.AppUpdateStatus.UpToDate -> {
+                            Text(
+                                text = "Your app is up to date! (v${status.currentVersion})",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = EmeraldSuccess,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+                        is com.example.data.repository.AppUpdateStatus.UpdateAvailable -> {
+                            Text(
+                                text = "New Version Available: v${status.latestVersion}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        is com.example.data.repository.AppUpdateStatus.Error -> {
+                            Text(
+                                text = "Status: ${status.message}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    val currentStatus = appUpdateStatus
+                    if (currentStatus is com.example.data.repository.AppUpdateStatus.UpdateAvailable) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Surface(
+                                onClick = {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, currentStatus.downloadUrl.toUri())
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("download_github_update_btn"),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("Download APK (v${currentStatus.latestVersion})", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
 
-                    AppLanguage.entries.forEach { lang ->
-                        val isSelected = currentAppLanguage == lang
+                            Surface(
+                                onClick = {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, currentStatus.githubReleaseUrl.toUri())
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = buttonBg,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("view_github_release_btn"),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("Release Notes", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            onClick = { viewModel.checkForAppUpdate(force = true) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = buttonBg,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("check_github_app_update_btn"),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                            ) {
+                                if (currentStatus is com.example.data.repository.AppUpdateStatus.Checking) {
+                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Checking GitHub...", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                                } else {
+                                    Icon(imageVector = Icons.Default.SystemUpdate, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Check for Updates", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Group 3: App Theme & Appearance
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(cardBg)
+                    .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+                    .padding(16.dp)
+                    .testTag("app_theme_selector_card"),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(42.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Apps,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "App Theme",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "${currentAppTheme.displayName} • ${currentAppTheme.description}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    AppThemeMode.entries.forEach { mode ->
+                        val isSelected = currentAppTheme == mode
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) socketBg else Color.Transparent)
                                 .then(
-                                    if (isSelected) Modifier.skeuomorphicWell(cornerRadius = 10.dp)
-                                    else Modifier.clip(RoundedCornerShape(8.dp))
+                                    if (isSelected) Modifier.border(1.dp, socketBorder, RoundedCornerShape(12.dp))
+                                    else Modifier,
                                 )
-                                .clickable { viewModel.setAppInterfaceLanguage(lang) }
+                                .selectable(
+                                    selected = isSelected,
+                                    role = androidx.compose.ui.semantics.Role.RadioButton,
+                                ) { viewModel.setAppThemeMode(mode) }
                                 .padding(vertical = 10.dp, horizontal = 12.dp)
-                                .testTag("language_option_${lang.code}")
+                                .testTag("theme_option_${mode.name.lowercase()}"),
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = if (isSelected) Icons.Default.Check else Icons.Default.Language,
+                                        imageVector = if (isSelected) Icons.Default.Check else Icons.Default.Apps,
                                         contentDescription = null,
-                                        tint = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                        modifier = Modifier.size(20.dp)
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                        modifier = Modifier.size(20.dp),
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {
                                         Text(
-                                            text = "${lang.displayName} • ${lang.nativeName}",
+                                            text = mode.displayName,
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurface
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                         )
                                         Text(
-                                            text = "Language code: ${lang.code.uppercase()}",
+                                            text = mode.description,
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontSize = 11.sp
                                         )
                                     }
                                 }
 
                                 if (isSelected) {
                                     Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = CyanNeon.copy(alpha = 0.15f)
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                                     ) {
                                         Text(
-                                            text = "ACTIVE",
-                                            color = CyanNeon,
-                                            fontSize = 10.sp,
+                                            text = "Active",
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                         )
                                     }
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
                     }
                 }
             }
         }
 
-        // 18+ Adult Channels Restriction Option
+        // Group 4: App Interface Language Selector Card
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(cardBg)
+                    .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+                    .padding(16.dp)
+                    .testTag("app_language_selector_card"),
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Surface(
-                            shape = CircleShape,
-                            color = Color(0xFFEF4444).copy(alpha = 0.2f),
-                            modifier = Modifier.size(40.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(42.dp),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Default.NoAdultContent,
+                                    imageVector = Icons.Default.Language,
                                     contentDescription = null,
-                                    tint = Color(0xFFEF4444),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "18+ Adult Content Filter",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                SkeuoJewelLed(
-                                    isActive = isAdultRestrictionEnabled,
-                                    color = SkeuoRubyLed,
-                                    size = 9.dp
-                                )
-                            }
-                            Text(
-                                text = if (isAdultRestrictionEnabled) "Blocked & hidden from all lists" else "Allow adult channels",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (isAdultRestrictionEnabled) EmeraldSuccess else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Switch(
-                        checked = isAdultRestrictionEnabled,
-                        onCheckedChange = { viewModel.toggleAdultRestriction(it) },
-                        colors = SwitchDefaults.colors(checkedThumbColor = CyanNeon),
-                        modifier = Modifier.testTag("adult_restriction_toggle")
-                    )
-                }
-            }
-        }
-
-        // Room Database & Offline Cache Management
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 60f)
-                        SkeuoJewelLed(isActive = true, color = SkeuoEmeraldLed, label = "STORAGE")
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 170f)
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = CyanNeon.copy(alpha = 0.2f),
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.SdStorage,
-                                    contentDescription = null,
-                                    tint = CyanNeon,
-                                    modifier = Modifier.size(22.dp)
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp),
                                 )
                             }
                         }
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Room Database & Cache",
+                                text = LocalAppStrings.current.languageSelectorTitle,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = "Manage local SQLite database to optimize storage",
+                                text = "83 Worldwide Languages Available",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        ) {
+                            Text(
+                                text = currentAppLanguage.code.uppercase(Locale.ROOT),
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Debossed storage metrics socket
+                    // Interactive Language Card Trigger
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .skeuomorphicWell(cornerRadius = 10.dp)
-                            .padding(12.dp)
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(text = "Cached Channels in Room:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(text = "${storageMetrics.offlineChannelsCount} items", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(socketBg)
+                            .border(1.dp, socketBorder, RoundedCornerShape(12.dp))
+                            .clickable(role = androidx.compose.ui.semantics.Role.Button) {
+                                showLanguageCardsDialog = true
                             }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(text = "Viewing History Entries:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(text = "${storageMetrics.historyEntriesCount} records", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(text = "EPG Program Schedule Cache:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(text = "${storageMetrics.epgProgramsCount} shows", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(text = "Estimated Cache Size:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(text = "${storageMetrics.totalCacheSizeMb} MB", fontSize = 12.sp, color = CyanNeon, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    SkeuoButton(
-                        onClick = { viewModel.clearRoomChannelCache() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                            .testTag("clear_offline_db_cache_btn")
+                            .padding(14.dp)
+                            .testTag("current_language_card_trigger"),
                     ) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Icon(Icons.Default.CleaningServices, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(appStrings.clearCache, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(36.dp),
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = currentAppLanguage.code.uppercase(Locale.ROOT),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = currentAppLanguage.displayName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Text(
+                                        text = "${currentAppLanguage.nativeName} • Tap to choose from 83 languages",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                ) {
+                                    Text(
+                                        text = "Change",
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Change Language",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                }
+                            }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "⚡ Device RAM is automatically optimized on app open and every 2 minutes in the background for zero-lag streaming.",
-                        fontSize = 11.sp,
-                        color = CyanNeon,
-                        lineHeight = 15.sp
-                    )
                 }
             }
         }
 
-        // Permanent Two Karate Chop Motion Quick Launch Card
+        // Group 5: Playback & Resolution Modes
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
-                    .testTag("karate_chop_feature_card")
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(cardBg)
+                    .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+                    .padding(16.dp),
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 90f)
-                        SkeuoJewelLed(isActive = isKarateChopEnabled, color = SkeuoEmeraldLed, label = "SENSOR")
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 200f)
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Surface(
-                            shape = CircleShape,
-                            color = CyanNeon.copy(alpha = 0.2f),
-                            modifier = Modifier.size(40.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(42.dp),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Text(text = "🥋", fontSize = 22.sp)
+                                Icon(
+                                    imageVector = Icons.Default.HighQuality,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp),
+                                )
                             }
                         }
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Two Karate Chop Quick Launch",
+                                text = "Playback & Resolution",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = if (isKarateChopEnabled) "Status: ON (Gesture Active 🟢)" else "Status: OFF (Gesture Disabled ⚪)",
+                                text = "Configure streaming bitrate and quality",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (isKarateChopEnabled) EmeraldSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        Switch(
-                            checked = isKarateChopEnabled,
-                            onCheckedChange = { viewModel.setKarateChopEnabled(it) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color(0xFF00363D),
-                                checkedTrackColor = CyanNeon,
-                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                            ),
-                            modifier = Modifier.testTag("karate_chop_switch")
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = "Do two rapid downward karate-chop motions with your phone anytime (even when screen is locked or app is in background) to immediately wake StreamPulse TV and start streaming live channels directly in landscape mode.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 16.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Live Sensor Meter & Chop Progress inside recessed VFD screen
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .skeuomorphicWell(cornerRadius = 12.dp)
-                            .padding(12.dp)
-                    ) {
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Live Motion Force:",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = String.format(Locale.US, "%.1f m/s²", chopForce),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (chopForce >= 13.5f) CyanNeon else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (chopCount >= 1) EmeraldSuccess.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(
-                                            text = if (chopCount >= 1) "Chop 1: Detected 🟢" else "Chop 1: Ready ⚪",
-                                            fontSize = 11.sp,
-                                            fontWeight = if (chopCount >= 1) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (chopCount >= 1) EmeraldSuccess else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (chopCount >= 2) EmeraldSuccess.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(
-                                            text = if (chopCount >= 2) "Chop 2: Success! 🥋" else "Chop 2: Ready ⚪",
-                                            fontSize = 11.sp,
-                                            fontWeight = if (chopCount >= 2) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (chopCount >= 2) EmeraldSuccess else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-
-                            if (!chopBanner.isNullOrEmpty()) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = chopBanner!!,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = EmeraldSuccess
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Simulate / Test Button with tactile depth
-                    SkeuoButton(
-                        onClick = { viewModel.simulateKarateChop() },
-                        isAccent = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("test_karate_chop_button")
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(
-                                text = "🥋 Test Two Karate Chops (Launch TV)",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                color = Color(0xFF00363D)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
-                }
-            }
-        }
 
-        // Playback & Bandwidth Optimization
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 30f)
-                        SkeuoJewelLed(isActive = true, color = SkeuoAmberGlow, label = "CODEC")
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 140f)
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-                        text = "Playback & Resolution Modes",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     val qualities = PlaybackQuality.entries
                     qualities.forEach { q ->
@@ -806,22 +779,27 @@ fun SettingsScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) socketBg else Color.Transparent)
                                 .then(
-                                    if (isSelected) Modifier.skeuomorphicWell(cornerRadius = 10.dp)
-                                    else Modifier.clip(RoundedCornerShape(8.dp))
+                                    if (isSelected) Modifier.border(1.dp, socketBorder, RoundedCornerShape(12.dp))
+                                    else Modifier,
                                 )
-                                .clickable { viewModel.setPlaybackQuality(q) }
-                                .padding(vertical = 10.dp, horizontal = 12.dp)
+                                .selectable(
+                                    selected = isSelected,
+                                    role = androidx.compose.ui.semantics.Role.RadioButton,
+                                ) { viewModel.setPlaybackQuality(q) }
+                                .padding(vertical = 10.dp, horizontal = 12.dp),
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
                                     imageVector = if (isSelected) Icons.Default.Check else Icons.Default.HighQuality,
                                     contentDescription = null,
-                                    tint = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(20.dp),
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(modifier = Modifier.weight(1f)) {
@@ -829,121 +807,607 @@ fun SettingsScreen(
                                         text = q.label,
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) CyanNeon else MaterialTheme.colorScheme.onSurface
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                     )
                                     Text(
                                         text = q.bitRateLimitDesc,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                    SkeuoButton(
+                    Surface(
                         onClick = onOpenSubtitlesDialog,
+                        shape = RoundedCornerShape(12.dp),
+                        color = buttonBg,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp)
-                            .testTag("settings_subtitles_btn")
+                            .testTag("settings_subtitles_btn"),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            horizontalArrangement = Arrangement.Center,
                         ) {
-                            Icon(imageVector = Icons.Default.ClosedCaption, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(18.dp))
+                            Icon(imageVector = Icons.Default.ClosedCaption, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Subtitles & Accessibility Tracks", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Subtitles & Audio Tracks", fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
             }
         }
 
-        // Parental Controls Shortcut
+        // Group 6: Content Safety & Parental Controls (Grouped!)
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 6.dp)
-                    .clickable { onOpenParentalSettings() }
-                    .testTag("parental_settings_shortcut")
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(cardBg)
+                    .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+                    .padding(16.dp),
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = null,
-                        tint = Color(0xFFFBBF24),
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Parental Controls & PIN Protection",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Configure 4-digit PIN, lock channels & view watch logs",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    SkeuoJewelLed(isActive = true, color = SkeuoAmberGlow, size = 9.dp)
-                }
-            }
-        }
-
-        // Device & App Information Card
-        item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 4.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    // 18+ Adult Channels Restriction Switch
                     Row(
                         modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = CyanNeon, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Device Compatibility & Specs",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.size(42.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.NoAdultContent,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(22.dp),
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(
+                                    text = "18+ Adult Content Filter",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = if (isAdultRestrictionEnabled) "Blocked from all lists" else "Allow adult channels",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isAdultRestrictionEnabled) EmeraldSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
-                        SkeuoScrew(size = 9.dp, rotationDegrees = 75f)
+
+                        Switch(
+                            checked = isAdultRestrictionEnabled,
+                            onCheckedChange = { viewModel.toggleAdultRestriction(it) },
+                            colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.testTag("adult_restriction_toggle"),
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "• App: StreamPulse TV v1.0\n• Engine: AndroidX Media3 ExoPlayer (Auto Device Fit)\n• Master Feed: Official Global Stream Network (Encrypted)\n• Room Database SQLite Cache with Auto RAM Optimizer\n• Picture-in-Picture & Real-time EPG Schedule Guide",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 18.sp
+                    // Divider line
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(socketBorder),
                     )
+
+                    // Parental Controls Shortcut
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(role = androidx.compose.ui.semantics.Role.Button) { onOpenParentalSettings() }
+                            .padding(vertical = 4.dp)
+                            .testTag("parental_settings_shortcut"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.size(42.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Security,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Parental Controls & PIN Protection",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Configure PIN, lock channels & view watch logs",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
         }
 
+        // Group 7: Storage & Room Database Cache
         item {
-            Spacer(modifier = Modifier.height(80.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(cardBg)
+                    .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+                    .padding(16.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(42.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.SdStorage,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Storage & Cache",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Manage local database cache",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    // Storage Metrics Box
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(socketBg)
+                            .border(1.dp, socketBorder, RoundedCornerShape(12.dp))
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(text = "Cached Channels:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(text = "$offlineChannelsCount items", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(text = "Viewing History Entries:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(text = "$historyEntriesCount records", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(text = "Estimated Cache Size:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(text = "$totalCacheSizeMb MB", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Surface(
+                        onClick = { viewModel.clearRoomChannelCache() },
+                        shape = RoundedCornerShape(12.dp),
+                        color = buttonBg,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .testTag("clear_offline_db_cache_btn"),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            Icon(Icons.Default.CleaningServices, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(LocalAppStrings.current.clearCache, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Group 8: About & Developer
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(cardBg)
+                    .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+                    .padding(16.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(42.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "About StreamPulse TV",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Version 1.0.0 • Clean & Fast",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    // Single unified More Apps Button
+                    Surface(
+                        onClick = {
+                            try {
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    "https://play.google.com/store/apps/developer?id=Strata+tech+lab".toUri(),
+                                )
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        color = buttonBg,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("more_apps_option"),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            Icon(imageVector = Icons.Default.Apps, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("More Apps by Strata Tech Lab", fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showLanguageCardsDialog) {
+        LanguageSelectionCardsDialog(
+            currentLanguage = currentAppLanguage,
+            onSelectLanguage = { lang ->
+                viewModel.setAppInterfaceLanguage(lang)
+                showLanguageCardsDialog = false
+            },
+        ) { showLanguageCardsDialog = false }
+    }
+}
+
+@Composable
+fun LanguageSelectionCardsDialog(
+    currentLanguage: AppLanguage,
+    onSelectLanguage: (AppLanguage) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val (cardBg, cardBorder, socketBg, socketBorder) = LocalAppThemeColors.current
+
+    val filteredLanguages = remember(searchQuery) {
+        if (searchQuery.isBlank()) {
+            AppLanguage.entries
+        } else {
+            val q = searchQuery.trim()
+            AppLanguage.entries.filter {
+                it.displayName.contains(q, ignoreCase = true) ||
+                it.nativeName.contains(q, ignoreCase = true) ||
+                it.code.contains(q, ignoreCase = true)
+            }
+        }
+    }
+
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = cardBg,
+            border = androidx.compose.foundation.BorderStroke(1.dp, cardBorder),
+            shadowElevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .heightIn(max = 620.dp)
+                .padding(vertical = 16.dp)
+                .testTag("language_selection_dialog"),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(38.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Language,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = "Select App Language",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "All 83 Worldwide Languages",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("close_language_dialog_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+
+                // Search Box
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("settings_language_search_input"),
+                    placeholder = {
+                        Text(
+                            "Search 83 languages...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = { searchQuery = "" },
+                                modifier = Modifier.size(24.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = cardBorder,
+                        focusedContainerColor = socketBg,
+                        unfocusedContainerColor = socketBg.copy(alpha = 0.5f),
+                    ),
+                )
+
+                // Scrollable Cards List for all 83 languages
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(filteredLanguages.size, key = { filteredLanguages[it].code }) { index ->
+                        val lang = filteredLanguages[index]
+                        val isSelected = currentLanguage == lang
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) socketBg else cardBg)
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else socketBorder,
+                                    shape = RoundedCornerShape(12.dp),
+                                )
+                                .clickable(role = androidx.compose.ui.semantics.Role.RadioButton) {
+                                    onSelectLanguage(lang)
+                                }
+                                .padding(horizontal = 14.dp, vertical = 10.dp)
+                                .testTag("language_option_${lang.code}"),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                        modifier = Modifier.size(34.dp),
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = lang.code.uppercase(Locale.ROOT),
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 11.sp,
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Column {
+                                        Text(
+                                            text = lang.displayName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Text(
+                                            text = lang.nativeName,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+
+                                if (isSelected) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Selected",
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "Active",
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Dialog Footer
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = "Showing ${filteredLanguages.size} of 83 languages",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    androidx.compose.material3.TextButton(onClick = onDismiss) {
+                        Text("Done", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }

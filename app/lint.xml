@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Legacy pre-adaptive launcher fallbacks are retained for older Android versions. -->
+    <issue id="IconLauncherShape">
+        <ignore path="src/main/res/mipmap-hdpi/ic_launcher.png" />
+        <ignore path="src/main/res/mipmap-mdpi/ic_launcher.png" />
+        <ignore path="src/main/res/mipmap-xhdpi/ic_launcher.png" />
+        <ignore path="src/main/res/mipmap-xxhdpi/ic_launcher.png" />
+        <ignore path="src/main/res/mipmap-xxxhdpi/ic_launcher.png" />
+    </issue>
+
+    <!-- Fixed-size icon artwork is intentionally density-independent. -->
+    <issue id="IconLocation">
+        <ignore path="src/main/res/drawable/gold_tv_icon_1793366696144.jpg" />
+    </issue>
+</lint>

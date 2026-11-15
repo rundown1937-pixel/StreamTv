@@ -8,62 +8,107 @@ plugins {
   alias(libs.plugins.google.services)
 }
 
+val sharedComposeBom = configurations.create("sharedComposeBom") {
+  isCanBeConsumed = false
+  isCanBeResolved = false
+}
+
+val sharedTestDependencies = configurations.create("sharedTestDependencies") {
+  isCanBeConsumed = false
+  isCanBeResolved = false
+}
+
+configurations.named("implementation") {
+  extendsFrom(sharedComposeBom)
+}
+
+configurations.named("testImplementation") {
+  extendsFrom(sharedComposeBom, sharedTestDependencies)
+}
+
+configurations.named("androidTestImplementation") {
+  extendsFrom(sharedComposeBom, sharedTestDependencies)
+}
+
 android {
   namespace = "com.example"
-  compileSdk { version = release(36) { minorApiLevel = 1 } }
+  compileSdk = 37
 
   defaultConfig {
     applicationId = "com.stratatechlabs.streamtv"
     minSdk = 24
-    targetSdk = 36
+    targetSdk = 37
     versionCode = 1
-    versionName = "1.0"
+    versionName = "1.0.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    ndk {
+      abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
+    }
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
   // and updating Android apps in AI Studio.
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "$rootDir/my-upload-key.jks"
       storeFile = file(keystorePath)
       storePassword = System.getenv("STORE_PASSWORD")
       keyAlias = "upload"
       keyPassword = System.getenv("KEY_PASSWORD")
-    }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
     }
   }
 
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       // Do not remove or modify this signingConfig assignment. It is necessary for Android apps in
       // AI Studio.
       signingConfig = signingConfigs.getByName("release")
     }
     debug {
-      // Do not remove or modify this signingConfig assignment. It is necessary for Android apps in
-      // AI Studio.
-      signingConfig = signingConfigs.getByName("debugConfig")
+      // Default debug signing
     }
   }
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
   }
   buildFeatures {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  packaging {
+    jniLibs {
+      // Android 16 KB page size alignment: store native libraries uncompressed and 16 KB page-aligned
+      useLegacyPackaging = false
+    }
+    resources {
+      excludes += "/META-INF/{AL2.0,LGPL2.1}"
+      excludes += "/META-INF/DEPENDENCIES"
+      excludes += "/META-INF/LICENSE*"
+      excludes += "/META-INF/NOTICE*"
+      excludes += "/META-INF/*.kotlin_module"
+      excludes += "DebugProbesKt.bin"
+    }
+  }
+  testOptions {
+    unitTests {
+      isIncludeAndroidResources = true
+      all {
+        it.jvmArgs(
+          "--add-opens=java.base/jdk.internal.access=ALL-UNNAMED",
+          "--add-opens=java.base/java.io=ALL-UNNAMED",
+          "--add-opens=java.base/java.lang=ALL-UNNAMED",
+          "--add-opens=java.base/java.util=ALL-UNNAMED",
+        )
+      }
+    }
+  }
   dependenciesInfo {
     includeInApk = false
     includeInBundle = true
@@ -83,8 +128,12 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
 dependencies {
-  implementation(platform(libs.androidx.compose.bom))
+  sharedComposeBom(platform(libs.androidx.compose.bom))
+  sharedTestDependencies(libs.androidx.compose.ui.test.junit4)
+  sharedTestDependencies(libs.androidx.junit)
+
   implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.analytics)
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   // implementation(libs.androidx.camera.camera2)
@@ -96,8 +145,11 @@ dependencies {
   implementation(libs.androidx.compose.material3)
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.ui.graphics)
+  implementation(libs.androidx.graphics.path)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)
+  implementation(libs.androidx.fragment)
+  implementation(libs.androidx.fragment.ktx)
   // implementation(libs.androidx.datastore.preferences)
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -106,15 +158,25 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.coil.compose)
+  implementation(libs.coilNetworkOkhttp)
   implementation(libs.androidx.media3.exoplayer)
   implementation(libs.androidx.media3.ui)
   implementation(libs.androidx.media3.exoplayer.hls)
   implementation(libs.androidx.media3.exoplayer.dash)
   implementation(libs.androidx.media3.datasource.okhttp)
+  implementation(libs.androidx.media3.datasource.rtmp) {
+    exclude(group = "io.antmedia", module = "rtmp-client")
+  }
+  implementation(libs.rtmp.client.aligned)
+  implementation(libs.androidx.datastore.preferences.android)
+  implementation(libs.androidx.media3.exoplayer.rtsp)
   implementation(libs.androidx.media3.extractor)
   implementation(libs.androidx.media3.common)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
+  implementation(libs.play.services.ads)
+  // Baseline profile runtime installer for accelerated DEX layout & instant cold starts
+  implementation(libs.androidx.profileinstaller)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 
@@ -133,16 +195,11 @@ dependencies {
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
-  testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
-  testImplementation(libs.androidx.junit)
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation(libs.robolectric)
-  androidTestImplementation(platform(libs.androidx.compose.bom))
-  androidTestImplementation(libs.androidx.compose.ui.test.junit4)
   androidTestImplementation(libs.androidx.espresso.core)
-  androidTestImplementation(libs.androidx.junit)
   androidTestImplementation(libs.androidx.runner)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
   debugImplementation(libs.androidx.compose.ui.tooling)

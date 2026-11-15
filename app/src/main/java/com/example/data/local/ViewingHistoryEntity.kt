@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
     tableName = "viewing_history",
     indices = [
         Index(value = ["profileId", "timestamp"]),
-        Index(value = ["channelId"])
+        Index(value = ["channelId"]),
     ]
 )
 data class ViewingHistoryEntity(

@@ -1,5 +1,7 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -7,10 +9,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
@@ -21,89 +24,87 @@ import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.example.data.local.ProgramEntity
+import coil3.compose.AsyncImage
 import com.example.data.model.Channel
-import com.example.ui.theme.CyanNeon
-import com.example.ui.theme.SkeuoButton
-import com.example.ui.theme.SkeuoJewelLed
-import com.example.ui.theme.SkeuoRubyLed
-import com.example.ui.theme.SkeuoScrew
-import com.example.ui.theme.skeuomorphicPanel
-import com.example.ui.theme.skeuomorphicWell
+import com.example.data.model.isOfflineMetadata
+import com.example.ui.theme.LiveGreen
+import com.example.ui.theme.LiveGreenText
+import com.example.ui.theme.LocalAppThemeColors
+import com.example.ui.theme.OfflineRed
+import com.example.ui.theme.OfflineRedText
 
 @Composable
 fun MiniPlayerBar(
     channel: Channel,
-    currentProgram: ProgramEntity?,
     isPlaying: Boolean,
     onTogglePlayPause: () -> Unit,
     onExpand: () -> Unit,
     onEnterPip: () -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isBroken: Boolean = false,
 ) {
+    val (cardBg, cardBorder, socketBg, socketBorder) = LocalAppThemeColors.current
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .skeuomorphicPanel(cornerRadius = 16.dp, elevation = 10.dp)
-            .clickable(onClick = onExpand)
-            .testTag("mini_player_bar")
+            .clip(RoundedCornerShape(12.dp))
+            .background(cardBg)
+            .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+            .clickable(
+                role = Role.Button,
+                onClickLabel = "Expand ${channel.name} to fullscreen",
+                onClick = onExpand,
+            )
+            .testTag("mini_player_bar"),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Corner hex screw on rack faceplate
-            SkeuoScrew(size = 8.dp, rotationDegrees = 25f, modifier = Modifier.padding(end = 8.dp))
-
-            // Channel Logo / Thumbnail in debossed well
+            // Channel Logo / Thumbnail (matched 10.dp radius)
             Box(
                 modifier = Modifier
-                    .size(46.dp)
-                    .skeuomorphicWell(cornerRadius = 8.dp),
-                contentAlignment = Alignment.Center
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(socketBg)
+                    .border(1.dp, socketBorder, RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center,
             ) {
                 if (!channel.logoUrl.isNullOrEmpty()) {
                     AsyncImage(
                         model = channel.logoUrl,
-                        contentDescription = channel.name,
-                        modifier = Modifier.size(36.dp)
+                        contentDescription = "${channel.name} logo",
+                        modifier = Modifier.size(36.dp),
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.Tv,
                         contentDescription = null,
-                        tint = CyanNeon,
-                        modifier = Modifier.size(24.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp),
                     )
-                }
-
-                // Live jewel indicator on top corner
-                Box(
-                    modifier = Modifier
-                        .padding(3.dp)
-                        .align(Alignment.TopEnd)
-                ) {
-                    SkeuoJewelLed(isActive = isPlaying, color = SkeuoRubyLed, size = 6.dp)
                 }
             }
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Channel & EPG info
+            // Channel info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = channel.name,
@@ -111,73 +112,118 @@ fun MiniPlayerBar(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = currentProgram?.title ?: "Live Broadcast • ${channel.genre}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = CyanNeon,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    // Live / Offline Status Badge (Strictly necessary status colors)
+                    val isEffectivelyOffline = isBroken || channel.isOfflineMetadata()
+                    val statusBgColor = if (isEffectivelyOffline) OfflineRed.copy(alpha = 0.15f) else LiveGreen.copy(alpha = 0.15f)
+                    val statusDotColor = if (isEffectivelyOffline) OfflineRed else LiveGreen
+                    val statusTextColor = if (isEffectivelyOffline) OfflineRedText else LiveGreenText
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = statusBgColor,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isEffectivelyOffline) OfflineRed.copy(alpha = 0.35f) else LiveGreen.copy(alpha = 0.35f),
+                        ),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(statusDotColor),
+                            )
+                            Text(
+                                text = if (isEffectivelyOffline) "OFFLINE" else "LIVE",
+                                color = statusTextColor,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = channel.genre,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
 
-            // PiP Button
+            // PiP Button (WCAG >= 48dp touch target)
             IconButton(
                 onClick = onEnterPip,
-                modifier = Modifier.size(36.dp).testTag("mini_player_pip_button")
+                modifier = Modifier
+                    .size(48.dp)
+                    .testTag("mini_player_pip_button"),
             ) {
                 Icon(
                     imageVector = Icons.Default.PictureInPictureAlt,
                     contentDescription = "Picture in Picture",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // Tactile Play / Pause SkeuoButton
-            SkeuoButton(
+            // Play / Pause Button (clean circular button, WCAG >= 48dp touch target)
+            Surface(
                 onClick = onTogglePlayPause,
-                isAccent = true,
-                cornerRadius = 18.dp,
-                modifier = Modifier.size(36.dp).testTag("mini_player_play_pause")
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(44.dp)
+                    .testTag("mini_player_play_pause"),
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = Color(0xFF00363D),
-                    modifier = Modifier.size(20.dp)
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause ${channel.name}" else "Play ${channel.name}",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // Expand
+            // Expand (WCAG >= 48dp touch target)
             IconButton(
                 onClick = onExpand,
-                modifier = Modifier.size(36.dp).testTag("mini_player_expand")
+                modifier = Modifier
+                    .size(48.dp)
+                    .testTag("mini_player_expand"),
             ) {
                 Icon(
                     imageVector = Icons.Default.Fullscreen,
-                    contentDescription = "Expand",
+                    contentDescription = "Expand player to fullscreen",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
 
-            // Close
+            // Close (WCAG >= 48dp touch target)
             IconButton(
                 onClick = onDismiss,
-                modifier = Modifier.size(32.dp).testTag("mini_player_close")
+                modifier = Modifier
+                    .size(48.dp)
+                    .testTag("mini_player_close"),
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Dismiss",
+                    contentDescription = "Dismiss mini player",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }

@@ -7,15 +7,13 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [
-        ProgramEntity::class,
         OfflineChannelEntity::class,
-        ViewingHistoryEntity::class
+        ViewingHistoryEntity::class,
     ],
-    version = 2,
-    exportSchema = false
+    version = 3,
+    exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun programDao(): ProgramDao
     abstract fun offlineChannelDao(): OfflineChannelDao
     abstract fun viewingHistoryDao(): ViewingHistoryDao
 
@@ -29,7 +27,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "streampulse_tv_epg.db"
-                ).fallbackToDestructiveMigration(true).build()
+                ).fallbackToDestructiveMigration(dropAllTables = true).build()
                 INSTANCE = instance
                 instance
             }

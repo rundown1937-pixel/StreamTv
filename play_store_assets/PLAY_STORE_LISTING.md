@@ -42,10 +42,6 @@ StreamPulse TV features a tactile broadcast studio interface inspired by profess
 • Filter instantly by category: News, Sports, Movies, Kids, Music, Documentary, and Science
 • Quick channel tuner search across 12,000+ stations
 
-🥋 TWO KARATE CHOP QUICK LAUNCH
-• Double downward karate-chop motion gesture instantly wakes the app and launches live streaming
-• On-device motion sensor calibration with live force feedback meters
-
 🛡️ HOUSEHOLD PROFILES & PARENTAL CONTROLS
 • Multi-user profiles with personalized favorites and watch histories
 • Child Safe Mode: Automatically filters mature channels and locks 18+ content
@@ -81,11 +77,13 @@ All graphical assets have been generated, sized, and formatted to Google Play Co
 
 | Asset Name | File Location | Specifications | Google Play Console Requirement |
 |---|---|---|---|
-| **High-Res App Icon** | `play_store_assets/icon_512x512.png` | 512 × 512 px, 32-bit PNG, 318 KB | **Mandatory** (Max 1024 KB, square) |
-| **Feature Graphic** | `play_store_assets/feature_graphic_1024x500.png` | 1024 × 500 px, 24-bit PNG, 739 KB | **Mandatory** (Promotional banner) |
+| **High-Res App Icon** | `play_store_assets/icon_512x512.png` | 512 × 512 px, 32-bit PNG | **Mandatory** (Max 1024 KB, square) |
+| **Feature Graphic** | `play_store_assets/feature_graphic_1024x500.png` | 1024 × 500 px, 24-bit PNG | **Mandatory** (Promotional banner) |
 | **Screenshot 1 (Landscape Player)** | `play_store_assets/screenshot_1_live_player_1920x1080.png` | 1920 × 1080 px (16:9), 32-bit PNG | **Mandatory** (Video Player in Action) |
 | **Screenshot 2 (Channel Rack)** | `play_store_assets/screenshot_2_channel_rack_1080x1920.png` | 1080 × 1920 px (9:16), 32-bit PNG | **Mandatory** (Live Channel Grid) |
 | **Screenshot 3 (EPG TV Guide)** | `play_store_assets/screenshot_3_epg_guide_1080x1920.png` | 1080 × 1920 px (9:16), 32-bit PNG | **Mandatory** (Program Schedule) |
+| **Screenshot 4 (Profiles & Parental)** | `play_store_assets/screenshot_4_profiles_parental_1080x1920.png` | 1080 × 1920 px (9:16), 32-bit PNG | **Recommended** (Multi-Profile & PIN) |
+| **Screenshot 5 (Settings & Play Store)** | `play_store_assets/screenshot_5_settings_play_store_1080x1920.png` | 1080 × 1920 px (9:16), 32-bit PNG | **Recommended** (Rate Us & Settings) |
 
 ---
 

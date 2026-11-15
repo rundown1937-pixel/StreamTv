@@ -2,10 +2,12 @@ package com.example.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.example.data.model.OfflineMedia
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +15,9 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 
-class OfflineDownloadRepository(private val context: Context) {
+// Retained as the offline-download data layer for screens that opt into this feature.
+@Suppress("unused")
+class OfflineDownloadRepository(context: Context) {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences("stream_pulse_offline", Context.MODE_PRIVATE)
@@ -26,7 +30,7 @@ class OfflineDownloadRepository(private val context: Context) {
     private val _storageUsedMb = MutableStateFlow(420.0)
     val storageUsedMb: StateFlow<Double> = _storageUsedMb.asStateFlow()
 
-    private val _lowBandwidthDownloadMode = MutableStateFlow(false)
+    private val _lowBandwidthDownloadMode = MutableStateFlow(value = false)
     val lowBandwidthDownloadMode: StateFlow<Boolean> = _lowBandwidthDownloadMode.asStateFlow()
 
     init {
@@ -56,8 +60,8 @@ class OfflineDownloadRepository(private val context: Context) {
                             isDownloaded = obj.getBoolean("isDownloaded"),
                             isDownloading = obj.optBoolean("isDownloading", false),
                             quality = obj.optString("quality", "1080p FHD"),
-                            thumbnailPlaceholder = obj.optString("thumbnailPlaceholder", "📺")
-                        )
+                            thumbnailPlaceholder = obj.optString("thumbnailPlaceholder", "📺"),
+                        ),
                     )
                 }
                 _downloads.value = list
@@ -74,30 +78,32 @@ class OfflineDownloadRepository(private val context: Context) {
     }
 
     private fun updateStorageMetrics(list: List<OfflineMedia>) {
-        val total = list.filter { it.isDownloaded }.sumOf { it.fileSizeMb }
+        val total = list.asSequence()
+            .filter(OfflineMedia::isDownloaded)
+            .sumOf(OfflineMedia::fileSizeMb)
         _storageUsedMb.value = total
     }
 
     private fun saveDownloads(list: List<OfflineMedia>) {
         try {
             val array = JSONArray()
-            for (m in list) {
+            for ((id, title, channelName, genre, streamUrl, _, fileSizeMb, durationMinutes, downloadProgress, isDownloaded, isDownloading, quality, thumbnailPlaceholder) in list) {
                 val obj = JSONObject()
-                obj.put("id", m.id)
-                obj.put("title", m.title)
-                obj.put("channelName", m.channelName)
-                obj.put("genre", m.genre)
-                obj.put("streamUrl", m.streamUrl)
-                obj.put("fileSizeMb", m.fileSizeMb)
-                obj.put("durationMinutes", m.durationMinutes)
-                obj.put("downloadProgress", m.downloadProgress)
-                obj.put("isDownloaded", m.isDownloaded)
-                obj.put("isDownloading", m.isDownloading)
-                obj.put("quality", m.quality)
-                obj.put("thumbnailPlaceholder", m.thumbnailPlaceholder)
+                obj.put("id", id)
+                obj.put("title", title)
+                obj.put("channelName", channelName)
+                obj.put("genre", genre)
+                obj.put("streamUrl", streamUrl)
+                obj.put("fileSizeMb", fileSizeMb)
+                obj.put("durationMinutes", durationMinutes)
+                obj.put("downloadProgress", downloadProgress)
+                obj.put("isDownloaded", isDownloaded)
+                obj.put("isDownloading", isDownloading)
+                obj.put("quality", quality)
+                obj.put("thumbnailPlaceholder", thumbnailPlaceholder)
                 array.put(obj)
             }
-            prefs.edit().putString("downloads_json", array.toString()).apply()
+            prefs.edit { putString("downloads_json", array.toString()) }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -109,7 +115,7 @@ class OfflineDownloadRepository(private val context: Context) {
 
     fun startDownload(mediaId: String) {
         val current = _downloads.value.toMutableList()
-        val index = current.indexOfFirst { it.id == mediaId }
+        val index = current.indexOfFirst { (id) -> id == mediaId }
         if (index == -1) return
 
         val target = current[index]
@@ -122,23 +128,23 @@ class OfflineDownloadRepository(private val context: Context) {
             isDownloading = true,
             downloadProgress = 0.05f,
             fileSizeMb = adjustedSize,
-            quality = adjustedQuality
+            quality = adjustedQuality,
         )
         _downloads.value = current
 
         // Launch simulated download steps with progress updates
         scope.launch {
             for (p in 1..10) {
-                delay(300)
+                delay(300.milliseconds)
                 val progress = p / 10f
                 val updatedList = _downloads.value.toMutableList()
-                val idx = updatedList.indexOfFirst { it.id == mediaId }
+                val idx = updatedList.indexOfFirst { (id) -> id == mediaId }
                 if (idx != -1) {
                     val isDone = progress >= 1.0f
                     updatedList[idx] = updatedList[idx].copy(
                         downloadProgress = progress,
                         isDownloading = !isDone,
-                        isDownloaded = isDone
+                        isDownloaded = isDone,
                     )
                     _downloads.value = updatedList
                     if (isDone) {
@@ -152,12 +158,12 @@ class OfflineDownloadRepository(private val context: Context) {
 
     fun deleteDownload(mediaId: String) {
         val current = _downloads.value.toMutableList()
-        val index = current.indexOfFirst { it.id == mediaId }
+        val index = current.indexOfFirst { (id) -> id == mediaId }
         if (index != -1) {
             current[index] = current[index].copy(
                 isDownloaded = false,
                 isDownloading = false,
-                downloadProgress = 0f
+                downloadProgress = 0f,
             )
             _downloads.value = current
             updateStorageMetrics(current)
