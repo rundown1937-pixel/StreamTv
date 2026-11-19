@@ -18,6 +18,8 @@ data class Channel(
     val description: String = "",
     val httpUserAgent: String? = null,
     val httpReferrer: String? = null,
+    val isActive: Boolean = false,
+    val isVerified: Boolean = false,
 )
 
 enum class ChannelGenre(val displayName: String) {

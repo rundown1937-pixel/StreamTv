@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
 import com.example.data.model.Channel
+import com.example.data.model.isOfflineMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -12,9 +13,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -116,6 +119,21 @@ class PlaylistRepository(private val context: Context) {
     // Indicates whether the full bundled 12k+ playlist has finished loading
     private val _isFullPlaylistLoaded = MutableStateFlow(false)
     val isFullPlaylistLoaded: StateFlow<Boolean> = _isFullPlaylistLoaded.asStateFlow()
+
+    private val _scannedChannelCount = MutableStateFlow(0)
+    val scannedChannelCount: StateFlow<Int> = _scannedChannelCount.asStateFlow()
+
+    private val _activeChannelCount = MutableStateFlow(0)
+    val activeChannelCount: StateFlow<Int> = _activeChannelCount.asStateFlow()
+
+    private val _inactiveChannelCount = MutableStateFlow(0)
+    val inactiveChannelCount: StateFlow<Int> = _inactiveChannelCount.asStateFlow()
+
+    private val _isScanComplete = MutableStateFlow(false)
+    val isScanComplete: StateFlow<Boolean> = _isScanComplete.asStateFlow()
+
+    private val _scanEtaSeconds = MutableStateFlow<Int?>(null)
+    val scanEtaSeconds: StateFlow<Int?> = _scanEtaSeconds.asStateFlow()
 
     private fun readAutoUpdatePreference(): Boolean {
         if (!prefs.getBoolean(PREF_AUTO_UPDATE_DEFAULT_APPLIED, false)) {
@@ -284,6 +302,113 @@ class PlaylistRepository(private val context: Context) {
                 Log.e("PlaylistRepo", "Auto-update failed", e)
             }
         }
+    }
+
+    suspend fun verifyAllChannels() {
+        if (_isScanComplete.value) return
+        
+        // Wait for the initial 13,000+ channels to load from assets first
+        initialLoadJob?.join()
+        
+        val currentChannels = _channels.value
+        if (currentChannels.isEmpty()) {
+            _isScanComplete.value = true
+            return
+        }
+
+        _scannedChannelCount.value = 0
+        _activeChannelCount.value = 0
+        _inactiveChannelCount.value = 0
+        _isScanComplete.value = false
+        _scanEtaSeconds.value = null
+
+        val totalChannels = currentChannels.size
+        val channelArray = arrayOfNulls<Channel>(totalChannels)
+        val semaphore = kotlinx.coroutines.sync.Semaphore(40)
+
+        // Custom client with 4s timeout for scanning
+        val scanClient = okHttpClient.newBuilder()
+            .connectTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+
+        val startTime = System.currentTimeMillis()
+        val etaJob = repositoryScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(1000)
+                val scanned = _scannedChannelCount.value
+                val elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000
+                if (scanned > 0 && elapsedSeconds > 0) {
+                    val channelsPerSecond = scanned.toFloat() / elapsedSeconds
+                    val remaining = totalChannels - scanned
+                    if (channelsPerSecond > 0) {
+                        _scanEtaSeconds.value = (remaining / channelsPerSecond).toInt()
+                    }
+                }
+            }
+        }
+
+        try {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val jobs = currentChannels.mapIndexed { index, channel ->
+                    launch {
+                        semaphore.withPermit {
+                            var isActive = false
+                            if (channel.isOfflineMetadata()) {
+                                isActive = false
+                            } else {
+                                try {
+                                    val headRequest = okhttp3.Request.Builder()
+                                        .url(channel.streamUrl)
+                                        .head()
+                                        .build()
+                                    val headResponse = scanClient.newCall(headRequest).execute()
+                                    if (headResponse.isSuccessful) {
+                                        isActive = true
+                                    } else if (headResponse.code == 405 || headResponse.code == 403 || headResponse.code == 501) {
+                                        // Fallback to GET
+                                        val getRequest = okhttp3.Request.Builder()
+                                            .url(channel.streamUrl)
+                                            .header("Range", "bytes=0-100")
+                                            .get()
+                                            .build()
+                                        val getResponse = scanClient.newCall(getRequest).execute()
+                                        isActive = getResponse.isSuccessful || getResponse.code == 206 // 206 Partial Content
+                                        getResponse.close()
+                                    }
+                                    headResponse.close()
+                                } catch (_: Exception) {
+                                    isActive = false
+                                }
+                            }
+
+                            val verifiedChannel = channel.copy(isActive = isActive, isVerified = true)
+                            channelArray[index] = verifiedChannel
+
+                            _scannedChannelCount.update { it + 1 }
+                            if (isActive) {
+                                _activeChannelCount.update { it + 1 }
+                            } else {
+                                _inactiveChannelCount.update { it + 1 }
+                            }
+                        }
+                    }
+                }
+                jobs.forEach { it.join() }
+            }
+        } finally {
+            etaJob.cancel()
+        }
+
+        _scanEtaSeconds.value = 0
+
+        val finalList = channelArray.filterNotNull()
+        playlistMutex.withLock {
+            _channels.value = finalList
+        }
+        saveCachedChannels(finalList)
+        _isScanComplete.value = true
     }
 
     suspend fun fetchPlaylist(urlOverride: String? = null): Result<Int> = withContext(Dispatchers.IO) {

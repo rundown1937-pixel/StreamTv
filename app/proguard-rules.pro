@@ -31,3 +31,23 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# Preserve Data Models serialized via JSON / Room / State
+-keep class com.example.data.model.** { *; }
+
+# Media3 / ExoPlayer keep rules and warning suppression
+-keep class androidx.media3.common.** { *; }
+-keep class androidx.media3.exoplayer.** { *; }
+-keep class androidx.media3.datasource.** { *; }
+-dontwarn androidx.media3.**
+
+# Google Mobile Ads (AdMob)
+-keep public class com.google.android.gms.ads.** {
+    public *;
+}
+-dontwarn com.google.android.gms.ads.**
+
+# Coil Image Loader
+-keep class coil3.** { *; }
+-dontwarn coil3.**
+

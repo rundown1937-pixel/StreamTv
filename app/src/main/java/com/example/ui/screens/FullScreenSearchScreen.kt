@@ -61,10 +61,8 @@ import com.example.data.model.Channel
 import com.example.data.model.ChannelGenre
 import com.example.data.model.isOfflineMetadata
 import com.example.ui.theme.LiveGreen
-import com.example.ui.theme.LiveGreenText
 import com.example.ui.theme.LocalAppThemeColors
 import com.example.ui.theme.OfflineRed
-import com.example.ui.theme.OfflineRedText
 import com.example.ui.viewmodel.TVViewModel
 
 @Composable
@@ -406,11 +404,12 @@ fun SearchChannelCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val (cardBg, cardBorder, socketBg, socketBorder) = LocalAppThemeColors.current
+    val appColors = LocalAppThemeColors.current
+    val (cardBg, cardBorder, socketBg, socketBorder) = appColors
     val isEffectivelyOffline = isBroken || channel.isOfflineMetadata()
     val statusBgColor = if (isEffectivelyOffline) OfflineRed.copy(alpha = 0.15f) else LiveGreen.copy(alpha = 0.15f)
     val statusDotColor = if (isEffectivelyOffline) OfflineRed else LiveGreen
-    val statusTextColor = if (isEffectivelyOffline) OfflineRedText else LiveGreenText
+    val statusTextColor = if (isEffectivelyOffline) appColors.statusOfflineText else appColors.statusLiveText
     val statusText = if (isEffectivelyOffline) "OFFLINE" else "LIVE"
 
     Box(

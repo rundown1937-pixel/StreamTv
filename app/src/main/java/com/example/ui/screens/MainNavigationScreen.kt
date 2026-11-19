@@ -262,7 +262,7 @@ fun MainNavigationScreen(
                     Icon(
                         imageVector = if (isCastingActive) Icons.Default.CastConnected else Icons.Default.Cast,
                         contentDescription = "Screen Cast",
-                        tint = if (isCastingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (isCastingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -279,7 +279,7 @@ fun MainNavigationScreen(
                     Icon(
                         imageVector = Icons.Default.Security,
                         contentDescription = "Parental Controls",
-                        tint = MaterialTheme.colorScheme.tertiary,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -363,6 +363,9 @@ fun MainNavigationScreen(
                             label = { Text(appStrings.liveTab) },
                             colors = NavigationRailItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 indicatorColor = MaterialTheme.colorScheme.primary,
                             ),
                             modifier = Modifier.testTag("nav_home"),
@@ -374,6 +377,9 @@ fun MainNavigationScreen(
                             label = { Text(appStrings.favoritesTab) },
                             colors = NavigationRailItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 indicatorColor = MaterialTheme.colorScheme.primary,
                             ),
                             modifier = Modifier.testTag("nav_favorites"),
@@ -385,6 +391,9 @@ fun MainNavigationScreen(
                             label = { Text(appStrings.settingsTab) },
                             colors = NavigationRailItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 indicatorColor = MaterialTheme.colorScheme.primary,
                             ),
                             modifier = Modifier.testTag("nav_settings"),
@@ -509,6 +518,9 @@ fun MainNavigationScreen(
                                     label = { Text(appStrings.liveTab, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                         indicatorColor = MaterialTheme.colorScheme.primary,
                                     ),
                                     modifier = Modifier.testTag("nav_home"),
@@ -520,6 +532,9 @@ fun MainNavigationScreen(
                                     label = { Text(appStrings.favoritesTab, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                         indicatorColor = MaterialTheme.colorScheme.primary,
                                     ),
                                     modifier = Modifier.testTag("nav_favorites"),
@@ -531,6 +546,9 @@ fun MainNavigationScreen(
                                     label = { Text(appStrings.settingsTab, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                         indicatorColor = MaterialTheme.colorScheme.primary,
                                     ),
                                     modifier = Modifier.testTag("nav_settings"),

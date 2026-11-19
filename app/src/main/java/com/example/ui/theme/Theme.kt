@@ -21,6 +21,8 @@ data class AppThemeColors(
     val socketBorder: Color,
     val buttonBackground: Color,
     val isDark: Boolean,
+    val statusLiveText: Color = if (isDark) LiveGreenTextDark else LiveGreenTextLight,
+    val statusOfflineText: Color = if (isDark) OfflineRedTextDark else OfflineRedTextLight,
 )
 
 val DarkAppThemeColors = AppThemeColors(
@@ -36,8 +38,8 @@ val WhiteAppThemeColors = AppThemeColors(
     cardBackground = WhiteSurface,
     cardBorder = WhiteBorder,
     socketBackground = WhiteSurfaceVariant,
-    socketBorder = Color(0xFFD6D6D6),
-    buttonBackground = Color(0xFFE0E0E0),
+    socketBorder = Color(0xFFCBD5E1),
+    buttonBackground = Color(0xFFE2E8F0),
     isDark = false,
 )
 
@@ -50,7 +52,11 @@ val SlateAppThemeColors = AppThemeColors(
     isDark = true,
 )
 
-val LocalAppThemeColors = staticCompositionLocalOf { DarkAppThemeColors }
+val LocalAppThemeColors = staticCompositionLocalOf { SlateAppThemeColors }
+
+val CoralRed = Color(0xFFEF4444)
+val AmberPending = Color(0xFFF59E0B)
+val BlueScanning = Color(0xFF3B82F6)
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFE0E0E0),
@@ -75,17 +81,17 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val WhiteColorScheme = lightColorScheme(
-    primary = Color(0xFF212121),
+    primary = Color(0xFF0F172A),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFE0E0E0),
-    onPrimaryContainer = Color(0xFF121212),
-    secondary = Color(0xFF616161),
+    primaryContainer = Color(0xFFE2E8F0),
+    onPrimaryContainer = Color(0xFF0F172A),
+    secondary = Color(0xFF334155),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFEEEEEE),
-    onSecondaryContainer = Color(0xFF212121),
-    tertiary = Color(0xFF757575),
+    secondaryContainer = Color(0xFFF1F5F9),
+    onSecondaryContainer = Color(0xFF0F172A),
+    tertiary = Color(0xFF475569),
     onTertiary = Color(0xFFFFFFFF),
-    error = Color(0xFF757575),
+    error = Color(0xFFDC2626),
     onError = Color(0xFFFFFFFF),
     background = WhiteBackground,
     onBackground = WhiteOnBackground,
@@ -120,7 +126,7 @@ private val SlateColorScheme = darkColorScheme(
 
 @Composable
 fun MyApplicationTheme(
-    themeMode: AppThemeMode = AppThemeMode.DARK,
+    themeMode: AppThemeMode = AppThemeMode.SLATE,
     content: @Composable () -> Unit,
 ) {
     val (colorScheme, appColors) = when (themeMode) {

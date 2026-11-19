@@ -150,26 +150,37 @@ fun SkeuoButton(
     isAccent: Boolean = false,
     isActive: Boolean = false,
     cornerRadius: Dp = 10.dp,
+    containerColor: Color? = null,
+    borderColor: Color? = null,
     content: @Composable () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val isFocused by interactionSource.collectIsFocusedAsState()
 
-    val bgColor = when {
-        isPressed -> Color(0xFF242424)
-        isAccent -> Color(0xFFEEEEEE)
-        isActive -> Color(0xFF333333)
-        else -> Color(0xFF282828)
+    val defaultBgColor = when {
+        isPressed -> androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+        isFocused -> androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
+        isAccent -> androidx.compose.material3.MaterialTheme.colorScheme.primary
+        isActive -> androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer
+        else -> androidx.compose.material3.MaterialTheme.colorScheme.surface
     }
+    val bgColor = containerColor ?: defaultBgColor
+
+    val defaultBorderColor = if (isFocused) {
+        androidx.compose.material3.MaterialTheme.colorScheme.primary
+    } else {
+        androidx.compose.material3.MaterialTheme.colorScheme.outline
+    }
+    val strokeColor = borderColor ?: defaultBorderColor
 
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius))
             .background(bgColor)
             .border(
-                width = if (isFocused) 1.5.dp else 1.dp,
-                color = if (isFocused) Color(0xFFEEEEEE) else Color(0xFF383838),
+                width = if (isFocused) 2.dp else 1.dp,
+                color = strokeColor,
                 shape = RoundedCornerShape(cornerRadius),
             )
             .clickable(

@@ -556,24 +556,24 @@ class ExampleRobolectricTest {
     val app = ApplicationProvider.getApplicationContext<android.app.Application>()
     val vm = com.example.ui.viewmodel.TVViewModel(app)
 
-    // Default theme should be DARK
+    // Default theme should be SLATE
+    assertEquals(AppThemeMode.SLATE, vm.appThemeMode.value)
+
+    // Switch to DARK
+    vm.setAppThemeMode(AppThemeMode.DARK)
     assertEquals(AppThemeMode.DARK, vm.appThemeMode.value)
 
     // Switch to WHITE
     vm.setAppThemeMode(AppThemeMode.WHITE)
     assertEquals(AppThemeMode.WHITE, vm.appThemeMode.value)
 
-    // Switch to SLATE
-    vm.setAppThemeMode(AppThemeMode.SLATE)
-    assertEquals(AppThemeMode.SLATE, vm.appThemeMode.value)
-
     // Verify persistence across new ViewModel instance
     val reloadedVm = com.example.ui.viewmodel.TVViewModel(app)
-    assertEquals(AppThemeMode.SLATE, reloadedVm.appThemeMode.value)
+    assertEquals(AppThemeMode.WHITE, reloadedVm.appThemeMode.value)
 
-    // Reset back to DARK
-    reloadedVm.setAppThemeMode(AppThemeMode.DARK)
-    assertEquals(AppThemeMode.DARK, reloadedVm.appThemeMode.value)
+    // Reset back to SLATE
+    reloadedVm.setAppThemeMode(AppThemeMode.SLATE)
+    assertEquals(AppThemeMode.SLATE, reloadedVm.appThemeMode.value)
   }
 
   @Test

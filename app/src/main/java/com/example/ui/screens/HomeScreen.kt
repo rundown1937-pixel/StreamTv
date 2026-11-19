@@ -56,10 +56,8 @@ import com.example.data.model.ChannelGenre
 import com.example.data.model.isOfflineMetadata
 import com.example.ui.components.ChannelCard
 import com.example.ui.theme.LiveGreen
-import com.example.ui.theme.LiveGreenText
 import com.example.ui.theme.LocalAppThemeColors
 import com.example.ui.theme.OfflineRed
-import com.example.ui.theme.OfflineRedText
 import com.example.ui.viewmodel.TVViewModel
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.FilterChip
@@ -85,12 +83,22 @@ fun HomeScreen(
     val channelSortOrder by viewModel.channelSortOrder.collectAsState()
     val hasActiveFilters = (selectedGenre != ChannelGenre.ALL.displayName) || (selectedCountry != "ALL") || (selectedLanguage != "ALL") || (selectedSubcategory != "ALL") || searchQuery.isNotBlank()
 
-    val (_, _, socketBg, socketBorder) = LocalAppThemeColors.current
+    val appColors = LocalAppThemeColors.current
+    val (_, _, socketBg, socketBorder) = appColors
 
     val favoriteChannels = remember(filteredChannels) { filteredChannels.filter(Channel::isFavorite) }
     val density = androidx.compose.ui.platform.LocalDensity.current
     val screenWidthDp = with(density) {
         androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.width.toDp().value.toInt()
+    }
+    val availableWidthDp = if (screenWidthDp >= 600) screenWidthDp - 80 else screenWidthDp
+    val columns = when {
+        availableWidthDp >= 1150 -> 3
+        availableWidthDp >= 580 -> 2
+        else -> 1
+    }
+    val rowChunks = remember(filteredChannels, columns) {
+        if (columns > 1) filteredChannels.chunked(columns) else emptyList()
     }
 
     LazyColumn(
@@ -296,9 +304,9 @@ fun HomeScreen(
                                     text = sub,
                                     fontSize = 11.sp,
                                     color = if (isLiveChip) {
-                                        if (isSelected) LiveGreen else LiveGreenText
+                                        if (isSelected) LiveGreen else appColors.statusLiveText
                                     } else if (isOfflineChip) {
-                                        if (isSelected) OfflineRed else OfflineRedText
+                                        if (isSelected) OfflineRed else appColors.statusOfflineText
                                     } else {
                                         if (isSelected) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.onSurfaceVariant
                                     },
@@ -309,8 +317,8 @@ fun HomeScreen(
                                 containerColor = if (isLiveChip) LiveGreen.copy(alpha = 0.14f)
                                                  else if (isOfflineChip) OfflineRed.copy(alpha = 0.14f)
                                                  else MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = if (isLiveChip) LiveGreenText
-                                             else if (isOfflineChip) OfflineRedText
+                                labelColor = if (isLiveChip) appColors.statusLiveText
+                                             else if (isOfflineChip) appColors.statusOfflineText
                                              else MaterialTheme.colorScheme.onSurfaceVariant,
                                 selectedContainerColor = if (isLiveChip) LiveGreen.copy(alpha = 0.28f)
                                                          else if (isOfflineChip) OfflineRed.copy(alpha = 0.28f)
@@ -573,7 +581,7 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.tertiary,
+                            tint = Color(0xFFF59E0B),
                             modifier = Modifier.size(20.dp),
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -743,13 +751,6 @@ fun HomeScreen(
             // Channel Cards List (Adapts columns dynamically to device screen width)
             // On landscape phones (typically 750-950dp after 80dp rail), 2 columns gives ~380-450dp per card.
             // 3 columns requires >= 1150dp available content width (large landscape tablets).
-            val availableWidthDp = if (screenWidthDp >= 600) screenWidthDp - 80 else screenWidthDp
-            val columns = when {
-                availableWidthDp >= 1150 -> 3
-                availableWidthDp >= 580 -> 2
-                else -> 1
-            }
-
             val homeDisplayList = filteredChannels
 
             if (columns == 1) {
@@ -767,7 +768,6 @@ fun HomeScreen(
                     }
                 }
             } else {
-                val rowChunks = homeDisplayList.chunked(columns)
                 items(rowChunks, key = { chunk -> chunk.first().id }) { chunkChannels ->
                     Row(
                         modifier = Modifier

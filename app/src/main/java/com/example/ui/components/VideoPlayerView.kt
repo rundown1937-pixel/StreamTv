@@ -106,6 +106,8 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.example.ui.theme.LiveRed
+import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.theme.AppThemeMode
 import com.example.ui.theme.SkeuoButton
 import com.example.ui.theme.SkeuoJewelLed
 import com.example.ui.theme.SkeuoRubyLed
@@ -478,14 +480,15 @@ fun VideoPlayerView(
         exoPlayer.trackSelectionParameters = paramsBuilder.build()
     }
 
-    Box(
-        modifier = modifier
-            .then(
-                if (!isFullscreen && !isPipMode) {
-                    Modifier.tvScreenBezel(cornerRadius = 14.dp)
-                } else Modifier,
-            )
-            .background(Color.Black)
+    MyApplicationTheme(themeMode = AppThemeMode.DARK) {
+        Box(
+            modifier = modifier
+                .then(
+                    if (!isFullscreen && !isPipMode) {
+                        Modifier.tvScreenBezel(cornerRadius = 14.dp)
+                    } else Modifier,
+                )
+                .background(Color.Black)
             // Vertical Drag Gestures: Left 35% = Brightness, Right 35% = Volume, Center 30% = Swipe Up/Down Fullscreen
             .pointerInput(isScreenLocked, isPipMode, isFullscreen) {
                 if (!isScreenLocked && !isPipMode) {
@@ -621,7 +624,7 @@ fun VideoPlayerView(
                     Icon(
                         imageVector = Icons.Default.CastConnected,
                         contentDescription = "Casting",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = Color(0xFF38BDF8),
                         modifier = Modifier.size(56.dp),
                     )
                     Spacer(modifier = Modifier.height(14.dp))
@@ -650,13 +653,13 @@ fun VideoPlayerView(
                     Icon(
                         imageVector = Icons.Default.GraphicEq,
                         contentDescription = "Audio Only",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = Color(0xFF38BDF8),
                         modifier = Modifier.size(56.dp),
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Audio Only Mode Active",
-                        color = MaterialTheme.colorScheme.primary,
+                        color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                     )
@@ -711,7 +714,7 @@ fun VideoPlayerView(
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.primary,
+                    color = Color.White,
                     modifier = Modifier.size(44.dp),
                 )
             }
@@ -775,13 +778,16 @@ fun VideoPlayerView(
                                 streamFallbackMode = 0
                                 retryTrigger++
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                contentColor = Color(0xFF121212),
+                            ),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.testTag("stream_retry_button"),
                         ) {
-                            Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
+                            Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = Color(0xFF121212), modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Retry", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                            Text("Retry", color = Color(0xFF121212), fontWeight = FontWeight.Bold)
                         }
 
                         Button(
@@ -789,7 +795,10 @@ fun VideoPlayerView(
                                 streamFallbackMode = (streamFallbackMode + 1) % 3
                                 retryTrigger++
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White.copy(alpha = 0.2f),
+                                contentColor = Color.White,
+                            ),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.testTag("stream_switch_format_button"),
                         ) {
@@ -804,7 +813,10 @@ fun VideoPlayerView(
                         onNextChannel?.let { nextChannel ->
                             Button(
                                 onClick = nextChannel,
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White.copy(alpha = 0.2f),
+                                    contentColor = Color.White,
+                                ),
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.testTag("stream_skip_next_button"),
                             ) {
@@ -986,7 +998,7 @@ fun VideoPlayerView(
                         Icon(
                             imageVector = Icons.Default.Timer,
                             contentDescription = "Sleep Timer",
-                            tint = if (sleepTimerMinutes != null) MaterialTheme.colorScheme.primary else Color.White,
+                            tint = if (sleepTimerMinutes != null) Color(0xFFF59E0B) else Color.White,
                         )
                     }
 
@@ -1012,7 +1024,7 @@ fun VideoPlayerView(
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarOutline,
                             contentDescription = "Favorite",
-                            tint = Color.White,
+                            tint = if (isFavorite) Color(0xFFF59E0B) else Color.White,
                         )
                     }
 
@@ -1043,7 +1055,7 @@ fun VideoPlayerView(
                         Icon(
                             imageVector = if (isCasting) Icons.Default.CastConnected else Icons.Default.Cast,
                             contentDescription = "Cast",
-                            tint = if (isCasting) MaterialTheme.colorScheme.primary else Color.White,
+                            tint = if (isCasting) Color(0xFF38BDF8) else Color.White,
                         )
                     }
 
@@ -1088,6 +1100,8 @@ fun VideoPlayerView(
                         SkeuoButton(
                             onClick = previousChannel,
                             cornerRadius = 24.dp,
+                            containerColor = Color.Black.copy(alpha = 0.65f),
+                            borderColor = Color.White.copy(alpha = 0.25f),
                             modifier = Modifier
                                 .size(46.dp)
                                 .testTag("player_prev_channel_button"),
@@ -1109,6 +1123,8 @@ fun VideoPlayerView(
                             }
                         },
                         cornerRadius = 24.dp,
+                        containerColor = Color.Black.copy(alpha = 0.65f),
+                        borderColor = Color.White.copy(alpha = 0.25f),
                         modifier = Modifier
                             .size(46.dp)
                             .testTag("player_rewind_10_button"),
@@ -1125,6 +1141,8 @@ fun VideoPlayerView(
                         onClick = onTogglePlayPause,
                         isAccent = true,
                         cornerRadius = 30.dp,
+                        containerColor = Color.White,
+                        borderColor = Color.White,
                         modifier = Modifier
                             .size(62.dp)
                             .testTag("player_play_pause_button"),
@@ -1148,6 +1166,8 @@ fun VideoPlayerView(
                             }
                         },
                         cornerRadius = 24.dp,
+                        containerColor = Color.Black.copy(alpha = 0.65f),
+                        borderColor = Color.White.copy(alpha = 0.25f),
                         modifier = Modifier
                             .size(46.dp)
                             .testTag("player_forward_10_button"),
@@ -1164,6 +1184,8 @@ fun VideoPlayerView(
                         SkeuoButton(
                             onClick = nextChannel,
                             cornerRadius = 24.dp,
+                            containerColor = Color.Black.copy(alpha = 0.65f),
+                            borderColor = Color.White.copy(alpha = 0.25f),
                             modifier = Modifier
                                 .size(46.dp)
                                 .testTag("player_next_channel_button"),
@@ -1197,6 +1219,8 @@ fun VideoPlayerView(
                             SkeuoButton(
                                 onClick = { showQualityDialog = true },
                                 cornerRadius = 8.dp,
+                                containerColor = Color.Black.copy(alpha = 0.65f),
+                                borderColor = Color.White.copy(alpha = 0.25f),
                                 modifier = Modifier.testTag("player_quality_pill"),
                             ) {
                                 Row(
@@ -1206,7 +1230,7 @@ fun VideoPlayerView(
                                     Icon(
                                         imageVector = Icons.Default.HighQuality,
                                         contentDescription = "Quality",
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = Color(0xFF38BDF8),
                                         modifier = Modifier.size(14.dp),
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
@@ -1225,6 +1249,8 @@ fun VideoPlayerView(
                             SkeuoButton(
                                 onClick = { showAspectRatioDialog = true },
                                 cornerRadius = 8.dp,
+                                containerColor = Color.Black.copy(alpha = 0.65f),
+                                borderColor = Color.White.copy(alpha = 0.25f),
                                 modifier = Modifier.testTag("player_aspect_ratio_pill"),
                             ) {
                                 Row(
@@ -1257,7 +1283,7 @@ fun VideoPlayerView(
                                 Icon(
                                     imageVector = Icons.Default.ClosedCaption,
                                     contentDescription = "Subtitles",
-                                    tint = if (subtitlesEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.7f),
+                                    tint = if (subtitlesEnabled) Color(0xFF38BDF8) else Color.White.copy(alpha = 0.7f),
                                 )
                             }
 
@@ -1291,7 +1317,7 @@ fun VideoPlayerView(
                     Icon(
                         imageVector = Icons.Default.BrightnessMedium,
                         contentDescription = "Brightness",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = Color.White,
                         modifier = Modifier.size(24.dp),
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -1308,7 +1334,7 @@ fun VideoPlayerView(
                             modifier = Modifier
                                 .width(80.dp)
                                 .height(4.dp),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = Color(0xFF38BDF8),
                             trackColor = Color.White.copy(alpha = 0.3f),
                         )
                     }
@@ -1330,7 +1356,7 @@ fun VideoPlayerView(
                     Icon(
                         imageVector = if (currentVolume == 0) Icons.AutoMirrored.Filled.VolumeMute else Icons.AutoMirrored.Filled.VolumeUp,
                         contentDescription = "Volume",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = Color.White,
                         modifier = Modifier.size(24.dp),
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -1347,7 +1373,7 @@ fun VideoPlayerView(
                             modifier = Modifier
                                 .width(80.dp)
                                 .height(4.dp),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = Color(0xFF38BDF8),
                             trackColor = Color.White.copy(alpha = 0.3f),
                         )
                     }
@@ -1362,7 +1388,7 @@ fun VideoPlayerView(
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = Color.Black.copy(alpha = 0.88f),
-                border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF38BDF8)),
                 shadowElevation = 8.dp,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -1398,7 +1424,7 @@ fun VideoPlayerView(
                         },
                         shape = RoundedCornerShape(24.dp),
                         color = Color.Black.copy(alpha = 0.85f),
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF38BDF8)),
                         modifier = Modifier.testTag("player_unlock_button"),
                     ) {
                         Row(
@@ -1408,7 +1434,7 @@ fun VideoPlayerView(
                             Icon(
                                 imageVector = Icons.Default.LockOpen,
                                 contentDescription = "Unlock Screen",
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = Color(0xFF38BDF8),
                                 modifier = Modifier.size(22.dp),
                             )
                             Spacer(modifier = Modifier.width(10.dp))
@@ -1618,6 +1644,7 @@ fun VideoPlayerView(
             )
         }
     }
+}
 }
 
 private fun parsePipeUrl(rawUrl: String): Pair<String, Map<String, String>> {

@@ -86,6 +86,18 @@ class TVViewModel(private val app: Application) : AndroidViewModel(app) {
     val profileRepo = ProfileRepository(app)
     val historyAndOfflineRepo = HistoryAndOfflineRepository(app)
 
+    val scannedChannelCount = playlistRepo.scannedChannelCount
+    val activeChannelCount = playlistRepo.activeChannelCount
+    val inactiveChannelCount = playlistRepo.inactiveChannelCount
+    val isScanComplete = playlistRepo.isScanComplete
+    val scanEtaSeconds = playlistRepo.scanEtaSeconds
+
+    fun startChannelScan() {
+        viewModelScope.launch {
+            playlistRepo.verifyAllChannels()
+        }
+    }
+
     private val _localNetworkPermissionRequested = MutableStateFlow(value = false)
     val localNetworkPermissionRequested: StateFlow<Boolean> = _localNetworkPermissionRequested.asStateFlow()
     private val pendingLocalNetworkActions = mutableListOf<() -> Unit>()
@@ -121,11 +133,11 @@ class TVViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private val _appThemeMode = MutableStateFlow(
         try {
-            val modeName = settingsPrefs.getString("app_theme_mode", com.example.ui.theme.AppThemeMode.DARK.name)
-                ?: com.example.ui.theme.AppThemeMode.DARK.name
+            val modeName = settingsPrefs.getString("app_theme_mode", com.example.ui.theme.AppThemeMode.SLATE.name)
+                ?: com.example.ui.theme.AppThemeMode.SLATE.name
             com.example.ui.theme.AppThemeMode.valueOf(modeName)
         } catch (_: Exception) {
-            com.example.ui.theme.AppThemeMode.DARK
+            com.example.ui.theme.AppThemeMode.SLATE
         },
     )
     val appThemeMode: StateFlow<com.example.ui.theme.AppThemeMode> = _appThemeMode.asStateFlow()
@@ -761,6 +773,7 @@ class TVViewModel(private val app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.Eagerly, playlistRepo.channels.value.isNotEmpty())
 
     // Indicates the full 12k+ playlist has been loaded and all channels are ready in memory
+    @Suppress("unused")
     val isAllChannelsReady: StateFlow<Boolean> = combine(
         playlistRepo.isFullPlaylistLoaded,
         playlistRepo.channels,

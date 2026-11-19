@@ -1,7 +1,8 @@
 package com.example.ui.screens
 
+import android.app.Activity
+import android.view.WindowManager
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -41,33 +42,28 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurfaceElevated
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.SkeuoButton
 import com.example.ui.viewmodel.TVViewModel
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Clean modern countdown splash screen with static graphics (no CPU-draining looping animations).
@@ -78,74 +74,44 @@ fun AppSplashScreen(
     onFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    DisposableEffect(Unit) {
+        val window = (context as? Activity)?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     val channels by viewModel.allChannels.collectAsState()
     val channelCount = channels.size
-    val isAllChannelsReady by viewModel.isAllChannelsReady.collectAsState()
+    val isFullPlaylistLoaded by viewModel.playlistRepo.isFullPlaylistLoaded.collectAsState()
 
-    // Initial countdown value in seconds (cinematic countdown)
-    var countdownSeconds by remember { mutableIntStateOf(3) }
-    var isReadyToEnter by remember { mutableStateOf(value = false) }
-
-    // Animated linear progress from 0f to 1f
+    // Smooth progress representation
     val progressAnim = remember { Animatable(0f) }
 
-    // Dynamic loading stage text based on countdown and channel availability
-    val currentStageText = remember(countdownSeconds, channelCount, isAllChannelsReady) {
-        when {
-            isAllChannelsReady || channelCount >= 12000 -> "All $channelCount Channels Verified & Ready! Opening StreamPulse TV..."
-            channelCount > 35 -> "Verifying 13,000+ Channels ($channelCount loaded & health-checked)..."
-            countdownSeconds >= 3 -> "Verifying 13,000+ Original Broadcaster Streams..."
-            countdownSeconds == 2 -> "Calibrating Low-Latency Audio/Video Decoders..."
-            else -> "Loading & health-checking 13,000+ channels ($channelCount loaded)..."
-        }
-    }
-
-    // Progress animation (one-shot)
-    LaunchedEffect(Unit) {
-        progressAnim.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 3200, easing = LinearEasing),
-        )
-    }
-
-    LaunchedEffect(Unit) {
-        // Countdown from 3 down to 1
-        while (countdownSeconds > 1) {
-            delay(1.seconds)
-            countdownSeconds--
-        }
-
-        // Keep countdown running until all channels are loaded from cache/assets
-        while (!viewModel.isAllChannelsReady.value) {
+    LaunchedEffect(channelCount, isFullPlaylistLoaded) {
+        if (isFullPlaylistLoaded || (channelCount >= 10000)) {
+            progressAnim.animateTo(1f, animationSpec = tween(durationMillis = 150, easing = LinearEasing))
             delay(100.milliseconds)
+            onFinished()
+        } else {
+            val approxProgress = (channelCount.toFloat() / 12000f).coerceIn(0.1f, 0.95f)
+            progressAnim.animateTo(approxProgress, animationSpec = tween(durationMillis = 150, easing = LinearEasing))
         }
-
-        // If an initial feed sync is actively downloading the latest 13,200+ channels, wait briefly (up to 5s)
-        var syncWaitMs = 0
-        while (viewModel.playlistRepo.isSyncing.value && syncWaitMs < 5000) {
-            delay(100.milliseconds)
-            syncWaitMs += 100
-        }
-
-        delay(400.milliseconds)
-        countdownSeconds = 0
-        isReadyToEnter = true
-        progressAnim.snapTo(1f)
-        delay(600.milliseconds) // Brief pause to display completion state
-        onFinished()
     }
 
     Surface(
         modifier = modifier
             .fillMaxSize()
             .testTag("app_countdown_splash_screen"),
-        color = DarkBackground,
+        color = MaterialTheme.colorScheme.background,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars)
-                .background(DarkBackground),
+                .background(MaterialTheme.colorScheme.background),
             contentAlignment = Alignment.Center,
         ) {
             Column(
@@ -155,7 +121,7 @@ fun AppSplashScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                // App Logo & Static Icon (looping animation removed)
+                // App Logo & Static Icon
                 Box(
                     modifier = Modifier.size(96.dp),
                     contentAlignment = Alignment.Center,
@@ -187,7 +153,7 @@ fun AppSplashScreen(
                         letterSpacing = 2.sp,
                         fontFamily = FontFamily.SansSerif,
                     ),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -203,46 +169,45 @@ fun AppSplashScreen(
 
                 Spacer(modifier = Modifier.height(36.dp))
 
-                // Center Countdown Dial
+                // Center Dial Indicator
                 Box(
                     modifier = Modifier.size(136.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    // Circular Progress Dial
                     CircularProgressIndicator(
                         progress = { progressAnim.value },
                         modifier = Modifier.size(132.dp),
-                        color = if (countdownSeconds == 0) EmeraldSuccess else MaterialTheme.colorScheme.primary,
-                        trackColor = DarkSurfaceElevated,
+                        color = if (isFullPlaylistLoaded) EmeraldSuccess else MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
                         strokeWidth = 5.dp,
                         strokeCap = StrokeCap.Round,
                     )
 
-                    // Center Animated Digit or Ready Icon
                     AnimatedContent(
-                        targetState = countdownSeconds,
+                        targetState = isFullPlaylistLoaded,
                         transitionSpec = {
                             (fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.8f))
                                 .togetherWith(fadeOut(animationSpec = tween(220)) + scaleOut(targetScale = 1.2f))
                         },
-                        label = "countdown_digit",
-                    ) { seconds ->
-                        if (seconds > 0) {
+                        label = "load_status",
+                    ) { ready ->
+                        if (!ready) {
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center,
                             ) {
+                                val percentage = (progressAnim.value * 100).toInt()
                                 Text(
-                                    text = seconds.toString(),
-                                    style = MaterialTheme.typography.displayMedium.copy(
+                                    text = "$percentage%",
+                                    style = MaterialTheme.typography.displaySmall.copy(
                                         fontWeight = FontWeight.ExtraBold,
                                         fontFamily = FontFamily.Monospace,
                                     ),
-                                    color = Color.White,
-                                    modifier = Modifier.testTag("countdown_timer_text"),
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.testTag("scan_progress_text"),
                                 )
                                 Text(
-                                    text = "SEC",
+                                    text = "LOADING",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 1.sp,
@@ -277,30 +242,25 @@ fun AppSplashScreen(
 
                 Spacer(modifier = Modifier.height(30.dp))
 
-                // Loading Progress Bar (Tracks 13,000+ channel loading dynamically)
-                val targetProgress = if (isAllChannelsReady || channelCount >= 12000) {
-                    1f
-                } else {
-                    maxOf(progressAnim.value * 0.25f, (channelCount.toFloat() / 12831f).coerceIn(0f, 1f))
-                }
+                // Loading Progress Bar
                 LinearProgressIndicator(
-                    progress = { targetProgress },
+                    progress = { progressAnim.value },
                     modifier = Modifier
                         .fillMaxWidth(0.85f)
                         .height(6.dp)
                         .clip(RoundedCornerShape(3.dp))
                         .testTag("channel_loading_progress_bar"),
-                    color = if (countdownSeconds == 0) EmeraldSuccess else MaterialTheme.colorScheme.primary,
-                    trackColor = DarkSurfaceElevated,
+                    color = if (isFullPlaylistLoaded) EmeraldSuccess else MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
 
                 // Live Channels Counter Pill
                 Surface(
-                    color = DarkSurfaceElevated,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, DarkBorder),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                     modifier = Modifier.padding(horizontal = 12.dp),
                 ) {
                     Row(
@@ -319,14 +279,14 @@ fun AppSplashScreen(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = if (channelCount > 0) {
-                                "Verified $channelCount Channels Ready"
+                                "Loading Channels: $channelCount Ready"
                             } else {
-                                "Loading & Verifying 13,000+ Channels..."
+                                "Loading Worldwide Channels..."
                             },
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontWeight = FontWeight.SemiBold,
                             ),
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -335,9 +295,9 @@ fun AppSplashScreen(
 
                 // Dynamic Status Stage Message
                 Text(
-                    text = currentStageText,
+                    text = if (isFullPlaylistLoaded) "All $channelCount Channels Loaded! Opening StreamPulse TV..." else "Loading worldwide channels...",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF9E9E9E),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth(0.9f)
@@ -346,39 +306,33 @@ fun AppSplashScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // "Enter Player Now" button - active only once all 13,000+ channels are verified
-                AnimatedVisibility(
-                    visible = isAllChannelsReady || channelCount >= 12000,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
+                // "Enter TV" button - Always active so user can enter immediately
+                SkeuoButton(
+                    onClick = onFinished,
+                    isAccent = true,
+                    cornerRadius = 12.dp,
+                    modifier = Modifier
+                        .height(46.dp)
+                        .testTag("enter_tv_button"),
                 ) {
-                    SkeuoButton(
-                        onClick = onFinished,
-                        isAccent = true,
-                        cornerRadius = 12.dp,
-                        modifier = Modifier
-                            .height(46.dp)
-                            .testTag("skip_countdown_button"),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 16.dp),
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Bolt,
-                                contentDescription = null,
-                                tint = Color(0xFF121212),
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Enter Player Now",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                ),
-                                color = Color(0xFF121212),
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.Bolt,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Enter TV",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                            ),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
                     }
                 }
             }
@@ -393,14 +347,14 @@ fun AppSplashScreen(
                 Icon(
                     imageVector = Icons.Filled.Speed,
                     contentDescription = null,
-                    tint = Color.Gray,
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                     modifier = Modifier.size(14.dp),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Fast HLS Low-Latency Streaming Engine",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                 )
             }
         }

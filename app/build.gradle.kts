@@ -48,6 +48,17 @@ android {
     }
   }
 
+  androidResources {
+    localeFilters += listOf(
+      "en", "es", "hi", "fr", "de", "ar", "pt", "ru", "zh", "ja", "ko", "tr", "it", "id", "bn", "ur",
+      "vi", "uk", "pl", "nl", "tl", "th", "pa", "ta", "te", "mr", "gu", "ml", "kn", "or", "as", "fa",
+      "he", "el", "sv", "da", "no", "fi", "cs", "hu", "ro", "ms", "sw", "am", "ha", "yo", "ig", "zu",
+      "af", "sr", "hr", "bs", "bg", "sk", "sl", "lt", "lv", "et", "is", "ga", "cy", "eu", "ca", "gl",
+      "sq", "mk", "hy", "ka", "az", "kk", "uz", "tk", "ky", "tg", "ps", "ku", "sd", "ne", "si", "my",
+      "km", "lo", "mn"
+    )
+  }
+
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
   // and updating Android apps in AI Studio.
   signingConfigs {

@@ -40,10 +40,8 @@ import coil3.compose.AsyncImage
 import com.example.data.model.Channel
 import com.example.data.model.isOfflineMetadata
 import com.example.ui.theme.LiveGreen
-import com.example.ui.theme.LiveGreenText
 import com.example.ui.theme.LocalAppThemeColors
 import com.example.ui.theme.OfflineRed
-import com.example.ui.theme.OfflineRedText
 
 @Composable
 fun MiniPlayerBar(
@@ -119,10 +117,11 @@ fun MiniPlayerBar(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     // Live / Offline Status Badge (Strictly necessary status colors)
+                    val appColors = LocalAppThemeColors.current
                     val isEffectivelyOffline = isBroken || channel.isOfflineMetadata()
                     val statusBgColor = if (isEffectivelyOffline) OfflineRed.copy(alpha = 0.15f) else LiveGreen.copy(alpha = 0.15f)
                     val statusDotColor = if (isEffectivelyOffline) OfflineRed else LiveGreen
-                    val statusTextColor = if (isEffectivelyOffline) OfflineRedText else LiveGreenText
+                    val statusTextColor = if (isEffectivelyOffline) appColors.statusOfflineText else appColors.statusLiveText
 
                     Surface(
                         shape = RoundedCornerShape(6.dp),
@@ -184,7 +183,7 @@ fun MiniPlayerBar(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(48.dp)
                     .testTag("mini_player_play_pause"),
             ) {
                 Box(contentAlignment = Alignment.Center) {

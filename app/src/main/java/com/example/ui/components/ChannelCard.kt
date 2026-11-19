@@ -44,10 +44,8 @@ import coil3.compose.AsyncImage
 import com.example.data.model.Channel
 import com.example.data.model.isOfflineMetadata
 import com.example.ui.theme.LiveGreen
-import com.example.ui.theme.LiveGreenText
 import com.example.ui.theme.LocalAppThemeColors
 import com.example.ui.theme.OfflineRed
-import com.example.ui.theme.OfflineRedText
 
 
 @Composable
@@ -60,12 +58,13 @@ fun ChannelCard(
     onSelect: () -> Unit,
     onToggleFavorite: () -> Unit,
 ) {
-    val (cardBg, cardBorder, socketBg, socketBorder) = LocalAppThemeColors.current
+    val appColors = LocalAppThemeColors.current
+    val (cardBg, cardBorder, socketBg, socketBorder) = appColors
     val isOfflineByMeta = channel.isOfflineMetadata()
     val isEffectivelyOffline = isBroken || !isLive || isOfflineByMeta
     val statusBgColor = if (isEffectivelyOffline) OfflineRed.copy(alpha = 0.15f) else LiveGreen.copy(alpha = 0.15f)
     val statusDotColor = if (isEffectivelyOffline) OfflineRed else LiveGreen
-    val statusTextColor = if (isEffectivelyOffline) OfflineRedText else LiveGreenText
+    val statusTextColor = if (isEffectivelyOffline) appColors.statusOfflineText else appColors.statusLiveText
     val statusText = if (isEffectivelyOffline) "OFFLINE" else if (isSelected) "STREAMING" else "LIVE"
 
     Box(
@@ -134,7 +133,7 @@ fun ChannelCard(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = "Locked Channel",
-                                tint = MaterialTheme.colorScheme.onSurface,
+                                tint = Color.White,
                                 modifier = Modifier.size(20.dp),
                             )
                         }
@@ -306,13 +305,13 @@ fun ChannelCard(
                 IconButton(
                     onClick = onToggleFavorite,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .testTag("fav_button_${channel.id}"),
                 ) {
                     Icon(
                         imageVector = if (channel.isFavorite) Icons.Default.Star else Icons.Default.StarOutline,
                         contentDescription = if (channel.isFavorite) "Remove ${channel.name} from favorites" else "Add ${channel.name} to favorites",
-                        tint = if (channel.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (channel.isFavorite) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
