@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
 import com.example.data.model.Channel
-import com.example.data.model.isOfflineMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -13,11 +12,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -68,7 +65,7 @@ class PlaylistRepository(private val context: Context) {
         private const val PREF_AUTO_UPDATE = "auto_update_enabled"
         private const val PREF_UPDATE_INTERVAL_HOURS = "update_interval_hours"
         private const val PREF_AUTO_UPDATE_DEFAULT_APPLIED = "auto_update_24h_default_applied"
-        private const val PREF_CLEARED_LEGACY = "cleared_legacy_dw_fix_v6"
+        private const val PREF_CLEARED_LEGACY = "cleared_legacy_recategorized_v10"
 
         val PRESET_PLAYLISTS = listOf(
             PlaylistPreset(
@@ -117,23 +114,8 @@ class PlaylistRepository(private val context: Context) {
     val syncMessage: StateFlow<String?> = _syncMessage.asStateFlow()
 
     // Indicates whether the full bundled 12k+ playlist has finished loading
-    private val _isFullPlaylistLoaded = MutableStateFlow(false)
+    private val _isFullPlaylistLoaded = MutableStateFlow(value = false)
     val isFullPlaylistLoaded: StateFlow<Boolean> = _isFullPlaylistLoaded.asStateFlow()
-
-    private val _scannedChannelCount = MutableStateFlow(0)
-    val scannedChannelCount: StateFlow<Int> = _scannedChannelCount.asStateFlow()
-
-    private val _activeChannelCount = MutableStateFlow(0)
-    val activeChannelCount: StateFlow<Int> = _activeChannelCount.asStateFlow()
-
-    private val _inactiveChannelCount = MutableStateFlow(0)
-    val inactiveChannelCount: StateFlow<Int> = _inactiveChannelCount.asStateFlow()
-
-    private val _isScanComplete = MutableStateFlow(false)
-    val isScanComplete: StateFlow<Boolean> = _isScanComplete.asStateFlow()
-
-    private val _scanEtaSeconds = MutableStateFlow<Int?>(null)
-    val scanEtaSeconds: StateFlow<Int?> = _scanEtaSeconds.asStateFlow()
 
     private fun readAutoUpdatePreference(): Boolean {
         if (!prefs.getBoolean(PREF_AUTO_UPDATE_DEFAULT_APPLIED, false)) {
@@ -302,113 +284,6 @@ class PlaylistRepository(private val context: Context) {
                 Log.e("PlaylistRepo", "Auto-update failed", e)
             }
         }
-    }
-
-    suspend fun verifyAllChannels() {
-        if (_isScanComplete.value) return
-        
-        // Wait for the initial 13,000+ channels to load from assets first
-        initialLoadJob?.join()
-        
-        val currentChannels = _channels.value
-        if (currentChannels.isEmpty()) {
-            _isScanComplete.value = true
-            return
-        }
-
-        _scannedChannelCount.value = 0
-        _activeChannelCount.value = 0
-        _inactiveChannelCount.value = 0
-        _isScanComplete.value = false
-        _scanEtaSeconds.value = null
-
-        val totalChannels = currentChannels.size
-        val channelArray = arrayOfNulls<Channel>(totalChannels)
-        val semaphore = kotlinx.coroutines.sync.Semaphore(40)
-
-        // Custom client with 4s timeout for scanning
-        val scanClient = okHttpClient.newBuilder()
-            .connectTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
-            .writeTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
-            .build()
-
-        val startTime = System.currentTimeMillis()
-        val etaJob = repositoryScope.launch {
-            while (true) {
-                kotlinx.coroutines.delay(1000)
-                val scanned = _scannedChannelCount.value
-                val elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000
-                if (scanned > 0 && elapsedSeconds > 0) {
-                    val channelsPerSecond = scanned.toFloat() / elapsedSeconds
-                    val remaining = totalChannels - scanned
-                    if (channelsPerSecond > 0) {
-                        _scanEtaSeconds.value = (remaining / channelsPerSecond).toInt()
-                    }
-                }
-            }
-        }
-
-        try {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                val jobs = currentChannels.mapIndexed { index, channel ->
-                    launch {
-                        semaphore.withPermit {
-                            var isActive = false
-                            if (channel.isOfflineMetadata()) {
-                                isActive = false
-                            } else {
-                                try {
-                                    val headRequest = okhttp3.Request.Builder()
-                                        .url(channel.streamUrl)
-                                        .head()
-                                        .build()
-                                    val headResponse = scanClient.newCall(headRequest).execute()
-                                    if (headResponse.isSuccessful) {
-                                        isActive = true
-                                    } else if (headResponse.code == 405 || headResponse.code == 403 || headResponse.code == 501) {
-                                        // Fallback to GET
-                                        val getRequest = okhttp3.Request.Builder()
-                                            .url(channel.streamUrl)
-                                            .header("Range", "bytes=0-100")
-                                            .get()
-                                            .build()
-                                        val getResponse = scanClient.newCall(getRequest).execute()
-                                        isActive = getResponse.isSuccessful || getResponse.code == 206 // 206 Partial Content
-                                        getResponse.close()
-                                    }
-                                    headResponse.close()
-                                } catch (_: Exception) {
-                                    isActive = false
-                                }
-                            }
-
-                            val verifiedChannel = channel.copy(isActive = isActive, isVerified = true)
-                            channelArray[index] = verifiedChannel
-
-                            _scannedChannelCount.update { it + 1 }
-                            if (isActive) {
-                                _activeChannelCount.update { it + 1 }
-                            } else {
-                                _inactiveChannelCount.update { it + 1 }
-                            }
-                        }
-                    }
-                }
-                jobs.forEach { it.join() }
-            }
-        } finally {
-            etaJob.cancel()
-        }
-
-        _scanEtaSeconds.value = 0
-
-        val finalList = channelArray.filterNotNull()
-        playlistMutex.withLock {
-            _channels.value = finalList
-        }
-        saveCachedChannels(finalList)
-        _isScanComplete.value = true
     }
 
     suspend fun fetchPlaylist(urlOverride: String? = null): Result<Int> = withContext(Dispatchers.IO) {
@@ -902,7 +777,7 @@ class PlaylistRepository(private val context: Context) {
     ): String {
         val cleanRaw = rawCountry.trim().uppercase(Locale.ROOT)
         // 1. If rawCountry has a valid ISO code
-        if (cleanRaw.isNotEmpty() && cleanRaw != "GLOBAL" && cleanRaw != "UNDEFINED" && cleanRaw != "GENERAL") {
+        if ((cleanRaw.isNotEmpty()) && (cleanRaw != "GLOBAL") && (cleanRaw != "UNDEFINED") && (cleanRaw != "GENERAL")) {
             val candidate = cleanRaw.split(";", ",", "/", " ").firstOrNull()?.trim() ?: ""
             val mapped = mapIsoCodeToCountry(candidate)
             if (mapped.isNotEmpty()) return mapped
@@ -912,12 +787,12 @@ class PlaylistRepository(private val context: Context) {
         val mappedGroup = mapCountryNameToCode(groupTitle)
         if (mappedGroup.isNotEmpty()) return mappedGroup
 
-        // 3. Detect from tvgId extension (e.g. .us, .in, .uk, AMC.af@SD, A2CNN.al@SD)
+        // 3. Detect from tvgId extension (e.g., .us, .in, .uk, AMC.af@SD, A2CNN.al@SD)
         if (tvgId.contains('.')) {
             val afterDot = tvgId.substringAfterLast('.')
             val candidate = if (afterDot.contains('@')) afterDot.substringBefore('@') else afterDot
             val cleanCode = candidate.trim().uppercase(Locale.ROOT)
-            if (cleanCode.length in 2..3) {
+            if ((cleanCode.length in 2..3)) {
                 val mappedExt = mapIsoCodeToCountry(cleanCode)
                 if (mappedExt.isNotEmpty()) return mappedExt
             }
@@ -1256,14 +1131,14 @@ class PlaylistRepository(private val context: Context) {
     private fun mapToStandardGenre(groupTitle: String, title: String = "", tvgId: String = ""): String {
         val combined = "$groupTitle $title $tvgId".lowercase(Locale.ROOT)
         return when {
-            combined.contains("adult") || combined.contains("xxx") -> "Adult (18+)"
-            combined.contains("news") || combined.contains("noticias") || combined.contains("nouvelles") || combined.contains("nachrichten") || combined.contains("notizie") || combined.contains("новости") || combined.contains("أخبار") || combined.contains("समाचार") || combined.contains("khabar") || combined.contains("weather") || combined.contains("météo") || combined.contains("wetter") || combined.contains("cnn") || combined.contains("bbc") || combined.contains("sky news") || combined.contains("al jazeera") || combined.contains("dw") || combined.contains("france 24") || combined.contains("bloomberg") || combined.contains("cnbc") || combined.contains("aaj tak") || combined.contains("ndtv") || combined.contains("republic") || combined.contains("wion") || combined.contains("press") -> "News"
-            combined.contains("sport") || combined.contains("deporte") || combined.contains("futbol") || combined.contains("futebol") || combined.contains("soccer") || combined.contains("cricket") || combined.contains("racing") || combined.contains("nba") || combined.contains("nfl") || combined.contains("mma") || combined.contains("boxing") || combined.contains("espn") || combined.contains("eurosport") || combined.contains("red bull") || combined.contains("fight") || combined.contains("wwe") || combined.contains("tennis") || combined.contains("golf") -> "Sports"
-            combined.contains("movie") || combined.contains("cinema") || combined.contains("cine") || combined.contains("film") || combined.contains("pelicula") || combined.contains("кино") || combined.contains("أفلام") || combined.contains("filmes") || combined.contains("hbo") || combined.contains("cinemax") || combined.contains("starz") || combined.contains("paramount") -> "Movies"
+            combined.contains("adult") || combined.contains("xxx") || combined.contains("18+") || combined.contains("nsfw") || combined.contains("erotic") || combined.contains("playboy") -> "Adult (18+)"
+            combined.contains("news") || combined.contains("noticias") || combined.contains("nouvelles") || combined.contains("nachrichten") || combined.contains("notizie") || combined.contains("новости") || combined.contains("أخبار") || combined.contains("समाचार") || combined.contains("khabar") || combined.contains("weather") || combined.contains("météo") || combined.contains("wetter") || combined.contains("cnn") || combined.contains("bbc") || combined.contains("sky news") || combined.contains("al jazeera") || combined.contains("dw") || combined.contains("france 24") || combined.contains("bloomberg") || combined.contains("cnbc") || combined.contains("aaj tak") || combined.contains("ndtv") || combined.contains("republic") || combined.contains("wion") || combined.contains("press") || combined.contains("info") || combined.contains("journal") || combined.contains("tvn24") || combined.contains("euronews") || combined.contains("habertürk") || combined.contains("a haber") || combined.contains("cgtn") || combined.contains("livenews") || combined.contains("news24") -> "News"
+            combined.contains("sport") || combined.contains("deporte") || combined.contains("futbol") || combined.contains("futebol") || combined.contains("soccer") || combined.contains("cricket") || combined.contains("racing") || combined.contains("nba") || combined.contains("nfl") || combined.contains("mma") || combined.contains("boxing") || combined.contains("espn") || combined.contains("eurosport") || combined.contains("red bull") || combined.contains("fight") || combined.contains("wwe") || combined.contains("tennis") || combined.contains("golf") || combined.contains("arena sport") || combined.contains("bein") || combined.contains("dazn") || combined.contains("supersport") || combined.contains("match tv") || combined.contains("motogp") || combined.contains("formula 1") || combined.contains("sportsnet") || combined.contains("tnt sports") || combined.contains("fox sports") -> "Sports"
+            combined.contains("movie") || combined.contains("cinema") || combined.contains("cine") || combined.contains("film") || combined.contains("pelicula") || combined.contains("кино") || combined.contains("أفلام") || combined.contains("filmes") || combined.contains("hbo") || combined.contains("cinemax") || combined.contains("starz") || combined.contains("paramount") || combined.contains("flix") || combined.contains("blockbuster") || combined.contains("amc") || combined.contains("showtime") || combined.contains("filmbox") || combined.contains("tv1000") || combined.contains("moviestar") -> "Movies"
             combined.contains("series") || combined.contains("serie") || combined.contains("drama") || combined.contains("telenovela") || combined.contains("novelas") || combined.contains("сериал") || combined.contains("مسلسل") || combined.contains("soap") -> "Series & Drama"
-            combined.contains("music") || combined.contains("musica") || combined.contains("musique") || combined.contains("musik") || combined.contains("radio") || combined.contains("song") || combined.contains("vevo") || combined.contains("музык") || combined.contains("أغاني") || combined.contains("संगीत") || combined.contains("mtv") || combined.contains("vh1") || combined.contains("hits") -> "Music & Radio"
-            combined.contains("kid") || combined.contains("anim") || combined.contains("cartoon") || combined.contains("toon") || combined.contains("kinder") || combined.contains("infantil") || combined.contains("enfant") || combined.contains("anime") || combined.contains("детск") || combined.contains("أطفال") || combined.contains("बच्चे") || combined.contains("disney") || combined.contains("nickelodeon") || combined.contains("nick") -> "Kids & Animation"
-            combined.contains("doc") || combined.contains("history") || combined.contains("nature") || combined.contains("wildlife") || combined.contains("discovery") || combined.contains("geograph") || combined.contains("doku") || combined.contains("документ") || combined.contains("وثائقي") || combined.contains("national geographic") || combined.contains("animal") -> "Documentary"
+            combined.contains("music") || combined.contains("musica") || combined.contains("musique") || combined.contains("musik") || combined.contains("radio") || combined.contains("song") || combined.contains("vevo") || combined.contains("музык") || combined.contains("أغاني") || combined.contains("संगीत") || combined.contains("mtv") || combined.contains("vh1") || combined.contains("hits") || combined.contains("fm") || combined.contains("dance") || combined.contains("classical") -> "Music & Radio"
+            combined.contains("kid") || combined.contains("anim") || combined.contains("cartoon") || combined.contains("toon") || combined.contains("kinder") || combined.contains("infantil") || combined.contains("enfant") || combined.contains("anime") || combined.contains("детск") || combined.contains("أطفال") || combined.contains("बच्चे") || combined.contains("disney") || combined.contains("nickelodeon") || combined.contains("nick") || combined.contains("boomerang") || combined.contains("baby") || combined.contains("junior") || combined.contains("cbeebies") || combined.contains("cbbc") || combined.contains("super rtl") -> "Kids & Animation"
+            combined.contains("doc") || combined.contains("history") || combined.contains("nature") || combined.contains("wildlife") || combined.contains("discovery") || combined.contains("geograph") || combined.contains("doku") || combined.contains("документ") || combined.contains("وثائقي") || combined.contains("national geographic") || combined.contains("animal") || combined.contains("planet") || combined.contains("investigation") -> "Documentary"
             combined.contains("food") || combined.contains("cook") || combined.contains("chef") || combined.contains("cuisine") || combined.contains("cocina") || combined.contains("kochen") || combined.contains("recipe") || combined.contains("culinary") || combined.contains("खाना") || combined.contains("kitchen") -> "Cooking & Food"
             combined.contains("travel") || combined.contains("voyage") || combined.contains("reise") || combined.contains("viaje") || combined.contains("outdoor") || combined.contains("adventure") || combined.contains("tour") -> "Travel & Outdoors"
             combined.contains("comedy") || combined.contains("comedia") || combined.contains("humor") || combined.contains("satire") || combined.contains("юмор") || combined.contains("كوميديا") || combined.contains("हास्य") || combined.contains("standup") -> "Comedy"
@@ -1271,11 +1146,11 @@ class PlaylistRepository(private val context: Context) {
             combined.contains("educat") || combined.contains("learning") || combined.contains("school") || combined.contains("university") || combined.contains("academy") || combined.contains("wissen") || combined.contains("culture") || combined.contains("शिक्षा") || combined.contains("arte") -> "Education & Culture"
             combined.contains("business") || combined.contains("financ") || combined.contains("market") || combined.contains("bloomberg") || combined.contains("cnbc") || combined.contains("economy") || combined.contains("börse") || combined.contains("व्यापार") || combined.contains("stock") -> "Business & Finance"
             combined.contains("gaming") || combined.contains("esport") || combined.contains("game") || combined.contains("twitch") || combined.contains("playstation") || combined.contains("xbox") -> "Gaming & Esports"
-            combined.contains("relig") || combined.contains("church") || combined.contains("gospel") || combined.contains("bible") || combined.contains("jesus") || combined.contains("islam") || combined.contains("quran") || combined.contains("makkah") || combined.contains("madina") || combined.contains("hindu") || combined.contains("mandir") || combined.contains("puja") || combined.contains("bhakti") || combined.contains("sikh") || combined.contains("gurbani") || combined.contains("spiritual") || combined.contains("faith") || combined.contains("धार्मिक") || combined.contains("prayer") -> "Religious & Spiritual"
+            combined.contains("relig") || combined.contains("church") || combined.contains("gospel") || combined.contains("bible") || combined.contains("jesus") || combined.contains("islam") || combined.contains("quran") || combined.contains("makkah") || combined.contains("madina") || combined.contains("hindu") || combined.contains("mandir") || combined.contains("puja") || combined.contains("bhakti") || combined.contains("sikh") || combined.contains("gurbani") || combined.contains("spiritual") || combined.contains("faith") || combined.contains("धार्मिक") || combined.contains("prayer") || combined.contains("peace tv") -> "Religious & Spiritual"
             combined.contains("lifestyle") || combined.contains("fashion") || combined.contains("beauty") || combined.contains("estilo") || combined.contains("living") || combined.contains("home") || combined.contains("garden") -> "Lifestyle"
             combined.contains("regional") || combined.contains("local") || combined.contains("community") || combined.contains("state tv") -> "Regional & Local"
             combined.contains("classic") || combined.contains("retro") || combined.contains("vintage") || combined.contains("oldies") || combined.contains("nostalgia") -> "Classic & Retro"
-            combined.contains("entertainment") || combined.contains("entretenimiento") || combined.contains("divertissement") || combined.contains("unterhaltung") || combined.contains("развлеч") || combined.contains("मनोरंजन") -> "Entertainment"
+            combined.contains("entertainment") || combined.contains("entretenimiento") || combined.contains("divertissement") || combined.contains("unterhaltung") || combined.contains("развлеч") || combined.contains("मनोरंजन") || combined.contains("variety") || combined.contains("reality") || combined.contains("tlc") || combined.contains("bravo") -> "Entertainment"
             else -> "General"
         }
     }
@@ -1760,7 +1635,7 @@ class PlaylistRepository(private val context: Context) {
                 country = "IN",
                 language = "Hindi",
                 resolution = "1080p FHD",
-                description = "भारत का सबसे लोकप्रिय 24 घंटे का हिंदी समाचार चैनल - राजनीति, खेल, मनोरंजन और ताज़ा खबरें"
+                description = "भारत का सबसे लोकप्रिय 24 घंटे का हिंदी समाचार चैनल - राजनीति, खेल, मनोरंजन और ताज़ा खबरें",
             ),
 
             // 31. WION NEWS (INDIA) - World Is One News
@@ -1773,7 +1648,7 @@ class PlaylistRepository(private val context: Context) {
                 country = "IN",
                 language = "English",
                 resolution = "1080p FHD",
-                description = "World Is One News - Indian multinational English news channel reporting global politics and diplomacy"
+                description = "World Is One News - Indian multinational English news channel reporting global politics and diplomacy",
             ),
 
             // 32. NDTV INDIA - विश्वसनीय हिन्दी ख़बरें
@@ -1786,7 +1661,7 @@ class PlaylistRepository(private val context: Context) {
                 country = "IN",
                 language = "Hindi",
                 resolution = "1080p FHD",
-                description = "सटीक और निष्पक्ष विश्लेषण, देश और दुनिया की हर बड़ी ख़बर - एनडीटीवी इंडिया लाइव"
+                description = "सटीक और निष्पक्ष विश्लेषण, देश और दुनिया की हर बड़ी ख़बर - एनडीटीवी इंडिया लाइव",
             ),
 
             // 33. SANSAD TV HD (INDIA) - Indian Parliament Broadcaster
@@ -1799,8 +1674,8 @@ class PlaylistRepository(private val context: Context) {
                 country = "IN",
                 language = "Hindi",
                 resolution = "1080p FHD",
-                description = "Live Lok Sabha and Rajya Sabha sessions, parliamentary debates, national governance and Indian public affairs"
-            )
+                description = "Live Lok Sabha and Rajya Sabha sessions, parliamentary debates, national governance and Indian public affairs",
+            ),
         )
     }
 }

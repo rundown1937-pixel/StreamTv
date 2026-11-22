@@ -1,9 +1,12 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,13 +23,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -39,10 +43,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -59,9 +65,6 @@ import com.example.ui.theme.LiveGreen
 import com.example.ui.theme.LocalAppThemeColors
 import com.example.ui.theme.OfflineRed
 import com.example.ui.viewmodel.TVViewModel
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 
 @Composable
 fun HomeScreen(
@@ -69,8 +72,6 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val currentChannel by viewModel.currentChannel.collectAsState()
-    val activeProfile by viewModel.profileRepo.activeProfile.collectAsState()
-
     val filteredChannels by viewModel.filteredChannels.collectAsState()
     val recommendedChannels by viewModel.recommendedChannels.collectAsState()
     val recentlyWatchedChannels by viewModel.recentlyWatchedChannels.collectAsState()
@@ -81,547 +82,527 @@ fun HomeScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val brokenChannelIds by viewModel.brokenChannelIds.collectAsState()
     val channelSortOrder by viewModel.channelSortOrder.collectAsState()
-    val hasActiveFilters = (selectedGenre != ChannelGenre.ALL.displayName) || (selectedCountry != "ALL") || (selectedLanguage != "ALL") || (selectedSubcategory != "ALL") || searchQuery.isNotBlank()
 
-    val appColors = LocalAppThemeColors.current
-    val (_, _, socketBg, socketBorder) = appColors
+    val advancedFilterCount = remember(selectedCountry, selectedLanguage, selectedSubcategory) {
+        (if (selectedCountry != "ALL") 1 else 0) +
+            (if (selectedLanguage != "ALL") 1 else 0) +
+            (if (selectedSubcategory != "ALL") 1 else 0)
+    }
+    val hasActiveFilters = (selectedGenre != ChannelGenre.ALL.displayName) || (advancedFilterCount > 0) || searchQuery.isNotBlank()
+    var showFiltersPanel by rememberSaveable { mutableStateOf(value = false) }
 
-    val favoriteChannels = remember(filteredChannels) { filteredChannels.filter(Channel::isFavorite) }
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val screenWidthDp = with(density) {
-        androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.width.toDp().value.toInt()
-    }
-    val availableWidthDp = if (screenWidthDp >= 600) screenWidthDp - 80 else screenWidthDp
-    val columns = when {
-        availableWidthDp >= 1150 -> 3
-        availableWidthDp >= 580 -> 2
-        else -> 1
-    }
-    val rowChunks = remember(filteredChannels, columns) {
-        if (columns > 1) filteredChannels.chunked(columns) else emptyList()
-    }
+    val (cardBg, cardBorder, socketBg, socketBorder, _, _, statusLiveText, statusOfflineText) = LocalAppThemeColors.current
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag("home_screen_column"),
-        contentPadding = PaddingValues(bottom = 16.dp),
-    ) {
-        // Native Ad in Live Tab (ca-app-pub-2382308752605431/3199058069)
-        item {
-            Spacer(modifier = Modifier.height(10.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-            ) {
-                com.example.util.AdNativeView(adUnitId = com.example.util.AdManager.HOME_NATIVE_AD_ID)
-            }
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val isCompactWidth = maxWidth < 400.dp
+        val columns = when {
+            maxWidth >= 960.dp -> 3
+            maxWidth >= 560.dp -> 2
+            else -> 1
+        }
+        val rowChunks = remember(filteredChannels, columns) {
+            if (columns > 1) filteredChannels.chunked(columns) else emptyList()
         }
 
-        // Search Bar Section
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-            ) {
-                // Full Screen Search Trigger Bar (Clean 12.dp rounded bar)
-                Box(
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("home_screen_column"),
+            contentPadding = PaddingValues(bottom = 16.dp),
+        ) {
+            // Search Bar + Filters & Sort Controls in one clean row
+            item {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(socketBg)
-                        .border(1.dp, socketBorder, RoundedCornerShape(12.dp))
-                        .clickable(role = androidx.compose.ui.semantics.Role.Button) { viewModel.openFullScreenSearch() }
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .testTag("home_search_bar"),
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
+                    // Search Trigger Bar
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(socketBg)
+                            .border(1.dp, socketBorder, RoundedCornerShape(12.dp))
+                            .clickable(role = androidx.compose.ui.semantics.Role.Button) { viewModel.openFullScreenSearch() }
+                            .padding(horizontal = 12.dp, vertical = 11.dp)
+                            .testTag("home_search_bar"),
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = searchQuery.ifBlank { "Search live channels, genres..." },
-                            color = if (searchQuery.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(19.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = searchQuery.ifBlank { "Search channels..." },
+                                color = if (searchQuery.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (searchQuery.isNotBlank()) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear search",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clickable { viewModel.setSearchQuery("") },
+                                )
+                            }
+                        }
+                    }
+
+                    // Collapsible Filters Button (Region, Language, Live/Offline, Topic)
+                    if (searchQuery.isBlank()) {
+                        val isFilterActive = showFiltersPanel || (advancedFilterCount > 0)
+                        Surface(
+                            onClick = { showFiltersPanel = !showFiltersPanel },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isFilterActive) MaterialTheme.colorScheme.primary else socketBg,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isFilterActive) MaterialTheme.colorScheme.primary else socketBorder,
+                            ),
+                            modifier = Modifier.testTag("home_toggle_filters_btn"),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(
+                                    horizontal = if (isCompactWidth) 10.dp else 12.dp,
+                                    vertical = 10.dp,
+                                ),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = "Filters",
+                                    tint = if (isFilterActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                if (!isCompactWidth || (advancedFilterCount > 0)) {
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = if (advancedFilterCount > 0) "Filters ($advancedFilterCount)" else "Filters",
+                                        color = if (isFilterActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Sort Toggle Button (A-Z / Z-A)
+                    Surface(
+                        onClick = { viewModel.toggleChannelSortOrder() },
+                        shape = RoundedCornerShape(12.dp),
+                        color = socketBg,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, socketBorder),
+                        modifier = Modifier.testTag("home_sort_chip"),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = "Sort channels",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = channelSortOrder.label,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                        }
                     }
                 }
+            }
 
-                if (searchQuery.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(10.dp))
+            // Primary Categories Row (Always 1 tap away)
+            if (searchQuery.isBlank()) {
+                item {
+                    val genres = remember { ChannelGenre.entries.map { it.displayName } }
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                    ) {
+                        items(genres, key = { it }) { genreName ->
+                            val isSelected = selectedGenre == genreName
+                            Surface(
+                                onClick = {
+                                    viewModel.selectGenre(genreName)
+                                    viewModel.selectSubcategory("ALL")
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                ),
+                                modifier = Modifier.testTag("genre_chip_$genreName"),
+                            ) {
+                                Text(
+                                    text = genreName,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Collapsible Organized Filter Panel (Status/Topic, Country, Language)
+            if (searchQuery.isBlank()) {
+                item {
+                    AnimatedVisibility(visible = showFiltersPanel) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(cardBg)
+                                .border(1.dp, cardBorder, RoundedCornerShape(12.dp))
+                                .padding(vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            // Status & Topic
+                            val subcategories = viewModel.getSubcategoriesForGenre(selectedGenre)
+                            FilterSectionLabel(title = "Status & Topic")
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                items(subcategories, key = { it }) { sub ->
+                                    val isSelected = selectedSubcategory == sub
+                                    val isLiveChip = sub == "Live Now"
+                                    val isOfflineChip = sub == "Offline"
+                                    val containerColor = when {
+                                        isLiveChip -> if (isSelected) LiveGreen.copy(alpha = 0.28f) else LiveGreen.copy(alpha = 0.14f)
+                                        isOfflineChip -> if (isSelected) OfflineRed.copy(alpha = 0.28f) else OfflineRed.copy(alpha = 0.14f)
+                                        isSelected -> MaterialTheme.colorScheme.tertiary
+                                        else -> MaterialTheme.colorScheme.surfaceVariant
+                                    }
+                                    val borderColor = when {
+                                        isLiveChip -> if (isSelected) LiveGreen else LiveGreen.copy(alpha = 0.5f)
+                                        isOfflineChip -> if (isSelected) OfflineRed else OfflineRed.copy(alpha = 0.5f)
+                                        isSelected -> MaterialTheme.colorScheme.tertiary
+                                        else -> MaterialTheme.colorScheme.outlineVariant
+                                    }
+                                    val labelColor = when {
+                                        isLiveChip -> if (isSelected) LiveGreen else statusLiveText
+                                        isOfflineChip -> if (isSelected) OfflineRed else statusOfflineText
+                                        isSelected -> MaterialTheme.colorScheme.onTertiary
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+
+                                    Surface(
+                                        onClick = { viewModel.selectSubcategory(sub) },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = containerColor,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        ) {
+                                            if (isLiveChip || isOfflineChip) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(7.dp)
+                                                        .clip(CircleShape)
+                                                        .background(if (isLiveChip) LiveGreen else OfflineRed),
+                                                )
+                                            }
+                                            Text(
+                                                text = sub,
+                                                fontSize = 11.sp,
+                                                color = labelColor,
+                                                fontWeight = if (isSelected || isLiveChip || isOfflineChip) FontWeight.Bold else FontWeight.Normal,
+                                                maxLines = 1,
+                                                softWrap = false,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Country / Region
+                            val regions = viewModel.availableRegions
+                            FilterSectionLabel(title = "Country")
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                items(regions, key = com.example.ui.viewmodel.RegionItem::code) { (code, name, flag) ->
+                                    val isSelected = selectedCountry == code
+                                    Surface(
+                                        onClick = { viewModel.selectCountry(code) },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            width = 1.dp,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                        ),
+                                        modifier = Modifier.testTag("home_region_chip_$code"),
+                                    ) {
+                                        Text(
+                                            text = "$flag $name",
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Language
+                            val languages = viewModel.availableLanguages
+                            FilterSectionLabel(title = "Language")
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                items(languages, key = { it }) { lang ->
+                                    val isSelected = selectedLanguage == lang
+                                    Surface(
+                                        onClick = { viewModel.selectLanguage(lang) },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            width = 1.dp,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                        ),
+                                    ) {
+                                        Text(
+                                            text = if (lang == "ALL") "All" else lang,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Single Active Filters Summary Bar (only shown when any filter is active)
+            if (hasActiveFilters) {
+                item {
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .testTag("home_active_filters_banner"),
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
+                            val activeLabels = buildList {
+                                if (searchQuery.isNotBlank()) add("\"$searchQuery\"")
+                                if (selectedGenre != ChannelGenre.ALL.displayName) add(selectedGenre)
+                                if (selectedSubcategory != "ALL") add(selectedSubcategory)
+                                if (selectedCountry != "ALL") add(selectedCountry)
+                                if (selectedLanguage != "ALL") add(selectedLanguage)
+                            }.joinToString(" • ")
+
                             Text(
-                                text = "Found ${filteredChannels.size} live channels for \"$searchQuery\"",
+                                text = activeLabels,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            androidx.compose.material3.TextButton(
-                                onClick = { viewModel.setSearchQuery("") },
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            ) {
-                                Text("Clear", color = MaterialTheme.colorScheme.onSurface, fontSize = 11.sp)
-                            }
-                        }
-                    }
-                } else {
-                    // Quick Search Tags
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val quickTags = listOf("France 24", "Sky News", "Bloomberg", "TRT World", "Red Bull", "NASA", "Cinema", "Kids")
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        items(quickTags, key = { it }) { tag ->
-                            val isSelected = searchQuery.equals(tag, ignoreCase = true)
-                            Surface(
-                                onClick = {
-                                    viewModel.setSearchQuery(tag)
-                                    viewModel.openFullScreenSearch()
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceVariant,
-                                border = if (isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
-                                modifier = Modifier.padding(vertical = 2.dp),
-                            ) {
-                                Text(
-                                    text = tag,
-                                    fontSize = 11.sp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Worldwide Categories / Genres Filter Row (Hidden when searching)
-        if (searchQuery.isBlank()) {
-            item {
-                val genres = ChannelGenre.entries.map { it.displayName }
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 6.dp),
-                ) {
-                    items(genres, key = { it }) { genreName ->
-                        val isSelected = selectedGenre == genreName
-                        Surface(
-                            onClick = {
-                                viewModel.selectGenre(genreName)
-                                viewModel.selectSubcategory("ALL")
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = 1.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                            ),
-                            modifier = Modifier.testTag("genre_chip_$genreName"),
-                        ) {
-                            Text(
-                                text = genreName,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                                fontSize = 12.sp,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Subcategories Filter Row (Hidden when searching)
-        if (searchQuery.isBlank()) {
-            item {
-                val subcategories = viewModel.getSubcategoriesForGenre(selectedGenre)
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 6.dp),
-                ) {
-                    items(subcategories, key = { it }) { sub ->
-                        val isSelected = selectedSubcategory == sub
-                        val isLiveChip = sub == "Live Now"
-                        val isOfflineChip = sub == "Offline"
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { viewModel.selectSubcategory(sub) },
-                            shape = RoundedCornerShape(8.dp),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = isSelected,
-                                borderColor = if (isLiveChip) LiveGreen.copy(alpha = 0.5f)
-                                              else if (isOfflineChip) OfflineRed.copy(alpha = 0.5f)
-                                              else MaterialTheme.colorScheme.outlineVariant,
-                                selectedBorderColor = if (isLiveChip) LiveGreen
-                                                      else if (isOfflineChip) OfflineRed
-                                                      else MaterialTheme.colorScheme.tertiary,
-                                borderWidth = 1.dp,
-                                selectedBorderWidth = 1.dp,
-                            ),
-                            leadingIcon = if (isLiveChip || isOfflineChip) {
-                                {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(7.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isLiveChip) LiveGreen else OfflineRed),
-                                    )
-                                }
-                            } else null,
-                            label = {
-                                Text(
-                                    text = sub,
-                                    fontSize = 11.sp,
-                                    color = if (isLiveChip) {
-                                        if (isSelected) LiveGreen else appColors.statusLiveText
-                                    } else if (isOfflineChip) {
-                                        if (isSelected) OfflineRed else appColors.statusOfflineText
-                                    } else {
-                                        if (isSelected) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                                    fontWeight = if (isSelected || isLiveChip || isOfflineChip) FontWeight.Bold else FontWeight.Normal,
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = if (isLiveChip) LiveGreen.copy(alpha = 0.14f)
-                                                 else if (isOfflineChip) OfflineRed.copy(alpha = 0.14f)
-                                                 else MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = if (isLiveChip) appColors.statusLiveText
-                                             else if (isOfflineChip) appColors.statusOfflineText
-                                             else MaterialTheme.colorScheme.onSurfaceVariant,
-                                selectedContainerColor = if (isLiveChip) LiveGreen.copy(alpha = 0.28f)
-                                                         else if (isOfflineChip) OfflineRed.copy(alpha = 0.28f)
-                                                         else MaterialTheme.colorScheme.tertiary,
-                                selectedLabelColor = if (isLiveChip) LiveGreen
-                                                     else if (isOfflineChip) OfflineRed
-                                                     else MaterialTheme.colorScheme.onTertiary,
-                            ),
-                        )
-                    }
-                }
-            }
-        }
-
-        // Worldwide Regions Filter Chips (Quick country selector)
-        if (searchQuery.isBlank()) {
-            item {
-                val regions = viewModel.availableRegions
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 6.dp),
-                ) {
-                    items(regions, key = com.example.ui.viewmodel.RegionItem::code) { (code, name, flag) ->
-                        val isSelected = selectedCountry == code
-                        Surface(
-                            onClick = { viewModel.selectCountry(code) },
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = 1.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                            ),
-                            modifier = Modifier.testTag("home_region_chip_$code"),
-                        ) {
-                            Text(
-                                text = "$flag $name",
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                                fontSize = 11.sp,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Worldwide Languages Filter Row (83 Languages)
-        if (searchQuery.isBlank()) {
-            item {
-                val languages = viewModel.availableLanguages
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 10.dp),
-                ) {
-                    items(languages, key = { it }) { lang ->
-                        val isSelected = selectedLanguage == lang
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { viewModel.selectLanguage(lang) },
-                            shape = RoundedCornerShape(8.dp),
-                            label = { Text(if (lang == "ALL") "All Languages" else lang, fontSize = 11.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                        )
-                    }
-                }
-            }
-        }
-
-        if (hasActiveFilters && searchQuery.isBlank()) {
-            item {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
-                        .testTag("home_active_filters_banner"),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        val activeLabels = buildList {
-                            if (selectedGenre != ChannelGenre.ALL.displayName) add("Genre: $selectedGenre")
-                            if (selectedCountry != "ALL") add("Region: $selectedCountry")
-                            if (selectedLanguage != "ALL") add("Lang: $selectedLanguage")
-                            if (selectedSubcategory != "ALL") add(selectedSubcategory)
-                        }.joinToString(" • ")
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FilterList,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Filtered: $activeLabels",
-                                color = MaterialTheme.colorScheme.primary,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp),
                             )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = { viewModel.resetAllFilters() },
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                            ),
-                            modifier = Modifier.testTag("reset_all_filters_btn"),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Reset Filters", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+                            Surface(
+                                onClick = {
+                                    viewModel.resetAllFilters()
+                                    showFiltersPanel = false
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.testTag("reset_all_filters_btn"),
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Reset",
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
 
-
-
-        // Recently Watched Section (Last 5 channels opened, quick resume)
-        if (recentlyWatchedChannels.isNotEmpty() && searchQuery.isBlank()) {
+            // Native Ad in Live Tab
             item {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                 ) {
-                    Row(
+                    com.example.util.AdNativeView(adUnitId = com.example.util.AdManager.HOME_NATIVE_AD_ID)
+                }
+            }
+
+            // Recently Watched Section (Quick Resume)
+            if (recentlyWatchedChannels.isNotEmpty() && !hasActiveFilters) {
+                item {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                            .padding(vertical = 6.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Recently Watched",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Text(
-                            text = "Quick Resume",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(recentlyWatchedChannels, key = Channel::id) { channel ->
-                            RecentlyWatchedCard(
-                                channel = channel,
-                                onResume = { viewModel.playChannel(channel) },
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Recently Watched",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
-                    }
-                }
-            }
-        }
 
-        // Personalized Recommendations Section
-        if ((searchQuery.isBlank()) && (selectedGenre == ChannelGenre.ALL.displayName)) {
-            item {
-                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Tailored For You",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Text(
-                            text = "${activeProfile?.name ?: "Family"}'s Picks",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(recommendedChannels, key = Channel::id) { channel ->
-                            RecommendationCard(channel = channel) {
-                                viewModel.playChannel(channel)
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            items(recentlyWatchedChannels, key = Channel::id) { channel ->
+                                RecentlyWatchedCard(
+                                    channel = channel,
+                                    onResume = { viewModel.playChannel(channel) },
+                                )
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Favorites Row (if any)
-        if ((favoriteChannels.isNotEmpty()) && (selectedGenre != ChannelGenre.FAVORITES.displayName)) {
-            item {
-                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                    Row(
+            // Featured Section (Shown on default browse view)
+            if (!hasActiveFilters && recommendedChannels.isNotEmpty()) {
+                item {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                            .padding(vertical = 6.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
-                            tint = Color(0xFFF59E0B),
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Quick Favorites (${favoriteChannels.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Featured",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(favoriteChannels, key = Channel::id) { channel ->
-                            RecommendationCard(channel = channel) {
-                                viewModel.playChannel(channel)
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            items(recommendedChannels, key = Channel::id) { channel ->
+                                RecommendationCard(channel = channel) {
+                                    viewModel.playChannel(channel)
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Live Channel Directory Header
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
+            // Channel Directory Header
+            item {
                 val headerTitle = when {
-                    searchQuery.isNotEmpty() -> "Search Results (${filteredChannels.size})"
+                    searchQuery.isNotBlank() -> "Search Results (${filteredChannels.size})"
                     selectedSubcategory == "Live Now" -> "Live Channels (${filteredChannels.size})"
                     selectedSubcategory == "Offline" -> "Offline Channels (${filteredChannels.size})"
+                    selectedGenre != ChannelGenre.ALL.displayName -> "$selectedGenre (${filteredChannels.size})"
                     else -> "All Channels (${filteredChannels.size})"
                 }
                 Text(
@@ -629,169 +610,101 @@ fun HomeScreen(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    if (hasActiveFilters) {
-                        FilterChip(
-                            selected = true,
-                            onClick = { viewModel.resetAllFilters() },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = "Reset Filters",
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = "Reset Filters",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                                selectedLabelColor = MaterialTheme.colorScheme.primary,
-                                selectedLeadingIconColor = MaterialTheme.colorScheme.primary,
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = true,
-                                borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                            ),
-                            modifier = Modifier.testTag("home_header_reset_filters_chip"),
-                        )
-                    }
-
-                    FilterChip(
-                        selected = true,
-                        onClick = { viewModel.toggleChannelSortOrder() },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Sort,
-                                contentDescription = "Sort Direction",
-                                modifier = Modifier.size(16.dp),
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = channelSortOrder.label,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
-                        modifier = Modifier.testTag("home_sort_chip"),
-                    )
-                }
-            }
-        }
-
-        if (filteredChannels.isEmpty()) {
-            item {
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 20.dp),
-                ) {
-                    Column(
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+
+            if (filteredChannels.isEmpty()) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(36.dp),
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "No channels found matching '$searchQuery'",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Try searching for a different genre or country tag, or tap below to reset filters.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Button(
-                            onClick = { viewModel.resetAllFilters() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                            ),
-                            shape = RoundedCornerShape(8.dp),
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Text("Reset Search Filters", fontWeight = FontWeight.Bold)
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(36.dp),
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = if (searchQuery.isNotBlank()) "No channels found for \"$searchQuery\"" else "No channels match your filters",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Button(
+                                onClick = {
+                                    viewModel.resetAllFilters()
+                                    showFiltersPanel = false
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                            ) {
+                                Text("Reset Filters", fontWeight = FontWeight.Bold)
+                            }
                         }
-                    }
-                }
-            }
-        } else {
-            // Channel Cards List (Adapts columns dynamically to device screen width)
-            // On landscape phones (typically 750-950dp after 80dp rail), 2 columns gives ~380-450dp per card.
-            // 3 columns requires >= 1150dp available content width (large landscape tablets).
-            val homeDisplayList = filteredChannels
-
-            if (columns == 1) {
-                items(homeDisplayList, key = Channel::id) { channel ->
-                    val isOffline = brokenChannelIds.contains(channel.id) || channel.isOfflineMetadata()
-                    ChannelCard(
-                        channel = channel,
-                        isSelected = currentChannel?.id == channel.id,
-                        isLive = !isOffline,
-                        isBroken = isOffline,
-                        onSelect = { viewModel.playChannel(channel) },
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    ) {
-                        viewModel.toggleFavorite(channel.id)
                     }
                 }
             } else {
-                items(rowChunks, key = { chunk -> chunk.first().id }) { chunkChannels ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        for (channel in chunkChannels) {
-                            Box(modifier = Modifier.weight(1f)) {
-                                val isOffline = brokenChannelIds.contains(channel.id) || channel.isOfflineMetadata()
-                                ChannelCard(
-                                    channel = channel,
-                                    isSelected = currentChannel?.id == channel.id,
-                                    isLive = !isOffline,
-                                    isBroken = isOffline,
-                                    onSelect = { viewModel.playChannel(channel) },
-                                ) {
-                                    viewModel.toggleFavorite(channel.id)
+                if (columns == 1) {
+                    items(filteredChannels, key = Channel::id) { channel ->
+                        val isOffline = brokenChannelIds.contains(channel.id) || channel.isOfflineMetadata()
+                        ChannelCard(
+                            channel = channel,
+                            isSelected = currentChannel?.id == channel.id,
+                            isLive = !isOffline,
+                            isBroken = isOffline,
+                            onSelect = { viewModel.playChannel(channel) },
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        ) {
+                            viewModel.toggleFavorite(channel.id)
+                        }
+                    }
+                } else {
+                    items(rowChunks, key = { chunk -> chunk.first().id }) { chunkChannels ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            for (channel in chunkChannels) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    val isOffline = brokenChannelIds.contains(channel.id) || channel.isOfflineMetadata()
+                                    ChannelCard(
+                                        channel = channel,
+                                        isSelected = currentChannel?.id == channel.id,
+                                        isLive = !isOffline,
+                                        isBroken = isOffline,
+                                        onSelect = { viewModel.playChannel(channel) },
+                                    ) {
+                                        viewModel.toggleFavorite(channel.id)
+                                    }
                                 }
                             }
-                        }
-                        if (chunkChannels.size < columns) {
-                            repeat(columns - chunkChannels.size) {
-                                Spacer(modifier = Modifier.weight(1f))
+                            if (chunkChannels.size < columns) {
+                                repeat(columns - chunkChannels.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
                             }
                         }
                     }
@@ -799,6 +712,17 @@ fun HomeScreen(
             }
         }
     }
+}
+
+@Composable
+private fun FilterSectionLabel(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 12.dp),
+    )
 }
 
 @Composable

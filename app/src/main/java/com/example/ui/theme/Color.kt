@@ -11,12 +11,10 @@ import androidx.compose.ui.graphics.Color
 val LiveGreen = Color(0xFF22C55E)        // Emerald Green for LIVE streams & active indicators
 val LiveGreenTextDark = Color(0xFF4ADE80)    // High-contrast green text on dark backgrounds
 val LiveGreenTextLight = Color(0xFF15803D)   // High-contrast green text on light backgrounds (WCAG AA 4.5:1+)
-val LiveGreenText = LiveGreenTextDark
 
 val OfflineRed = Color(0xFFEF4444)       // Vivid Red for OFFLINE streams & error indicators
 val OfflineRedTextDark = Color(0xFFF87171)   // High-contrast red text on dark backgrounds
 val OfflineRedTextLight = Color(0xFFB91C1C)  // High-contrast red text on light backgrounds (WCAG AA 4.5:1+)
-val OfflineRedText = OfflineRedTextDark
 
 // Backward-compatible semantic aliases
 val EmeraldSuccess = LiveGreen

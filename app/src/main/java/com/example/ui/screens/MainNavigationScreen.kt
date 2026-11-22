@@ -1,8 +1,8 @@
 package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
-import android.content.res.Configuration
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -10,14 +10,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.foundation.layout.systemBarsIgnoringVisibility
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,7 +37,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -70,7 +76,6 @@ import com.example.ui.components.findActivity
 import com.example.ui.viewmodel.ScreenTab
 import com.example.ui.viewmodel.TVViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainNavigationScreen(
     viewModel: TVViewModel,
@@ -161,6 +166,9 @@ fun MainNavigationScreen(
                     castDeviceName = null,
                     isFavorite = false,
                     isPipMode = true,
+                    httpUserAgent = currentChannel?.httpUserAgent,
+                    httpReferrer = currentChannel?.httpReferrer,
+                    isMuted = isMuted,
                     onTogglePlayPause = { viewModel.togglePlayPause() },
                     onToggleFullscreen = {},
                     onCycleAspectRatio = {},
@@ -176,10 +184,11 @@ fun MainNavigationScreen(
         }
 
         BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-            val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-            val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-            val isTablet = configuration.smallestScreenWidthDp >= 600
-            val isWideScreen = isTablet || isLandscape || (maxWidth >= 600.dp)
+            val isLandscape = maxWidth > maxHeight
+            val isTablet = (maxWidth >= 600.dp) && (maxHeight >= 600.dp)
+            val isWideScreen = isTablet || (isLandscape && (maxWidth >= 520.dp))
+            val isCompactHeight = maxHeight < 480.dp
+            val isCompactPortrait = !isWideScreen && (maxWidth < 400.dp)
             val hasActiveStream = (currentChannel != null) || (playingOfflineMedia != null)
 
             if (isFullscreen && hasActiveStream) {
@@ -236,12 +245,13 @@ fun MainNavigationScreen(
                     )
                 }
         } else {
+            val actionButtonSize = if (isCompactPortrait) 42.dp else 48.dp
             val topBarActions: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {
-                // Full Screen Search Button (WCAG >= 48dp touch target)
+                // Full Screen Search Button
                 IconButton(
                     onClick = { viewModel.openFullScreenSearch() },
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(actionButtonSize)
                         .testTag("top_bar_search_button"),
                 ) {
                     Icon(
@@ -252,11 +262,11 @@ fun MainNavigationScreen(
                     )
                 }
 
-                // Cast Button (Opens real Android system cast settings, WCAG >= 48dp touch target)
+                // Cast Button
                 IconButton(
                     onClick = { viewModel.openCastDialog() },
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(actionButtonSize)
                         .testTag("top_bar_cast_button"),
                 ) {
                     Icon(
@@ -267,13 +277,13 @@ fun MainNavigationScreen(
                     )
                 }
 
-                // Parental Controls Shortcut (WCAG >= 48dp touch target)
+                // Parental Controls Shortcut
                 IconButton(
                     onClick = {
                         viewModel.requestParentalAccess(TVViewModel.PinActionType.OPEN_PARENTAL_SETTINGS)
                     },
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(actionButtonSize)
                         .testTag("top_bar_parental_button"),
                 ) {
                     Icon(
@@ -284,7 +294,7 @@ fun MainNavigationScreen(
                     )
                 }
 
-                // Rewards Ad Button (Watch ad to support / earn reward)
+                // Rewards Ad Button
                 IconButton(
                     onClick = {
                         context.findActivity()?.let { act ->
@@ -301,14 +311,14 @@ fun MainNavigationScreen(
                         }
                     },
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(actionButtonSize)
                         .testTag("top_bar_rewards_ad_button"),
                 ) {
                     Icon(
                         imageVector = Icons.Default.CardGiftcard,
                         contentDescription = "Watch Reward Ad",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(21.dp),
                     )
                 }
             }
@@ -335,11 +345,16 @@ fun MainNavigationScreen(
 
             if (isWideScreen) {
                 // Wide Screen / Landscape: Full-height Navigation Rail on left, content Scaffold on right
-                Row(modifier = Modifier.fillMaxSize()) {
+                val landscapeSafeInsets = WindowInsets.systemBarsIgnoringVisibility.union(WindowInsets.displayCutout)
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+                ) {
                     NavigationRail(
                         containerColor = MaterialTheme.colorScheme.surface,
                         contentColor = MaterialTheme.colorScheme.primary,
-                        windowInsets = WindowInsets.safeDrawing.only(
+                        windowInsets = landscapeSafeInsets.only(
                             WindowInsetsSides.Start + WindowInsetsSides.Vertical,
                         ),
                         modifier = Modifier
@@ -350,64 +365,103 @@ fun MainNavigationScreen(
                                 painter = painterResource(id = com.example.R.drawable.gold_tv_icon_1793366696144),
                                 contentDescription = "StreamPulse TV",
                                 modifier = Modifier
-                                    .padding(top = 12.dp, bottom = 12.dp)
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(10.dp)),
+                                    .padding(vertical = if (isCompactHeight) 2.dp else 10.dp)
+                                    .size(if (isCompactHeight) 28.dp else 36.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
                             )
                         },
                     ) {
-                        NavigationRailItem(
-                            selected = currentTab == ScreenTab.HOME,
-                            onClick = { viewModel.selectTab(ScreenTab.HOME) },
-                            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                            label = { Text(appStrings.liveTab) },
-                            colors = NavigationRailItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = MaterialTheme.colorScheme.primary,
-                            ),
-                            modifier = Modifier.testTag("nav_home"),
-                        )
-                        NavigationRailItem(
-                            selected = currentTab == ScreenTab.FAVORITES,
-                            onClick = { viewModel.selectTab(ScreenTab.FAVORITES) },
-                            icon = { Icon(Icons.Default.Star, contentDescription = "Favorites") },
-                            label = { Text(appStrings.favoritesTab) },
-                            colors = NavigationRailItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = MaterialTheme.colorScheme.primary,
-                            ),
-                            modifier = Modifier.testTag("nav_favorites"),
-                        )
-                        NavigationRailItem(
-                            selected = (currentTab == ScreenTab.SETTINGS) || (currentTab == ScreenTab.PARENTAL),
-                            onClick = { viewModel.selectTab(ScreenTab.SETTINGS) },
-                            icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                            label = { Text(appStrings.settingsTab) },
-                            colors = NavigationRailItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = MaterialTheme.colorScheme.primary,
-                            ),
-                            modifier = Modifier.testTag("nav_settings"),
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .verticalScroll(rememberScrollState()),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(if (isCompactHeight) 0.dp else 8.dp),
+                        ) {
+                            NavigationRailItem(
+                                selected = currentTab == ScreenTab.HOME,
+                                onClick = { viewModel.selectTab(ScreenTab.HOME) },
+                                icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                                label = {
+                                    Text(
+                                        text = appStrings.liveTab,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (currentTab == ScreenTab.HOME) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                                alwaysShowLabel = true,
+                                colors = NavigationRailItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                                ),
+                                modifier = Modifier.testTag("nav_home"),
+                            )
+                            NavigationRailItem(
+                                selected = currentTab == ScreenTab.FAVORITES,
+                                onClick = { viewModel.selectTab(ScreenTab.FAVORITES) },
+                                icon = { Icon(Icons.Default.Star, contentDescription = "Favorites") },
+                                label = {
+                                    Text(
+                                        text = appStrings.favoritesTab,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (currentTab == ScreenTab.FAVORITES) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                                alwaysShowLabel = true,
+                                colors = NavigationRailItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                                ),
+                                modifier = Modifier.testTag("nav_favorites"),
+                            )
+                            NavigationRailItem(
+                                selected = (currentTab == ScreenTab.SETTINGS) || (currentTab == ScreenTab.PARENTAL),
+                                onClick = { viewModel.selectTab(ScreenTab.SETTINGS) },
+                                icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                                label = {
+                                    Text(
+                                        text = appStrings.settingsTab,
+                                        fontSize = 11.sp,
+                                        fontWeight = if ((currentTab == ScreenTab.SETTINGS) || (currentTab == ScreenTab.PARENTAL)) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                                alwaysShowLabel = true,
+                                colors = NavigationRailItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                                ),
+                                modifier = Modifier.testTag("nav_settings"),
+                            )
+                        }
                     }
 
                     Scaffold(
                         modifier = Modifier.weight(1f),
-                        contentWindowInsets = WindowInsets.safeDrawing.only(
-                            WindowInsetsSides.End + WindowInsetsSides.Vertical,
+                        contentWindowInsets = landscapeSafeInsets.only(
+                            WindowInsetsSides.End + WindowInsetsSides.Bottom,
                         ),
                         topBar = {
                             TopAppBar(
-                                windowInsets = WindowInsets.safeDrawing.only(
+                                expandedHeight = if (isCompactHeight) 48.dp else TopAppBarDefaults.TopAppBarExpandedHeight,
+                                windowInsets = landscapeSafeInsets.only(
                                     WindowInsetsSides.End + WindowInsetsSides.Top,
                                 ),
                                 title = {
@@ -431,17 +485,35 @@ fun MainNavigationScreen(
                         bottomBar = {
                             if ((currentChannel != null) && !isMiniPlayerDismissed) {
                                 val activeCh = currentChannel!!
-                                MiniPlayerBar(
-                                    channel = activeCh,
-                                    isPlaying = isPlaying,
-                                    onTogglePlayPause = { viewModel.togglePlayPause() },
-                                    onExpand = {
-                                        viewModel.setFullscreen(enabled = true)
-                                    },
-                                    onEnterPip = { viewModel.requestPip() },
-                                    onDismiss = { viewModel.dismissMiniPlayer() },
-                                    isBroken = brokenChannelIds.contains(activeCh.id) || activeCh.isOfflineMetadata(),
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .windowInsetsPadding(
+                                            landscapeSafeInsets.only(
+                                                WindowInsetsSides.Bottom + WindowInsetsSides.End,
+                                            ),
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                ) {
+                                    MiniPlayerBar(
+                                        channel = activeCh,
+                                        isPlaying = false,
+                                        onTogglePlayPause = {
+                                            if (!isPlaying) viewModel.togglePlayPause()
+                                            viewModel.setFullscreen(enabled = true)
+                                        },
+                                        onExpand = {
+                                            if (!isPlaying) viewModel.togglePlayPause()
+                                            viewModel.setFullscreen(enabled = true)
+                                        },
+                                        onEnterPip = {
+                                            if (!isPlaying) viewModel.togglePlayPause()
+                                            viewModel.requestPip()
+                                        },
+                                        onDismiss = { viewModel.dismissMiniPlayer() },
+                                        isBroken = brokenChannelIds.contains(activeCh.id) || activeCh.isOfflineMetadata(),
+                                    )
+                                }
                             }
                         },
                     ) { innerPadding ->
@@ -455,10 +527,19 @@ fun MainNavigationScreen(
                     }
                 }
             } else {
-                // Portrait mode: Single Scaffold with TopAppBar, Content, and Bottom NavigationBar
+                // Portrait mode: vertical-only insets so TopAppBar clears status bar/notch,
+                // NavigationBar clears bottom system bar, and content always fills full width cleanly.
+                val portraitTopInsets = WindowInsets.statusBarsIgnoringVisibility
+                    .union(WindowInsets.displayCutout)
+                    .only(WindowInsetsSides.Top)
+                val portraitBottomInsets = WindowInsets.navigationBarsIgnoringVisibility
+                    .only(WindowInsetsSides.Bottom)
+
                 Scaffold(
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     topBar = {
                         TopAppBar(
+                            windowInsets = portraitTopInsets,
                             title = {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -468,16 +549,17 @@ fun MainNavigationScreen(
                                         painter = painterResource(id = com.example.R.drawable.gold_tv_icon_1793366696144),
                                         contentDescription = "StreamPulse TV",
                                         modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(RoundedCornerShape(10.dp)),
+                                            .size(if (isCompactPortrait) 30.dp else 36.dp)
+                                            .clip(RoundedCornerShape(8.dp)),
                                     )
-                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Spacer(modifier = Modifier.width(if (isCompactPortrait) 8.dp else 10.dp))
                                     Text(
                                         text = "StreamPulse TV",
                                         style = MaterialTheme.typography.titleMedium,
+                                        fontSize = if (isCompactPortrait) 15.sp else 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface,
-                                        letterSpacing = 0.5.sp,
+                                        letterSpacing = if (isCompactPortrait) 0.2.sp else 0.5.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
@@ -493,35 +575,59 @@ fun MainNavigationScreen(
                         Column(modifier = Modifier.fillMaxWidth()) {
                             if ((currentChannel != null) && !isMiniPlayerDismissed) {
                                 val activeCh = currentChannel!!
-                                MiniPlayerBar(
-                                    channel = activeCh,
-                                    isPlaying = isPlaying,
-                                    onTogglePlayPause = { viewModel.togglePlayPause() },
-                                    onExpand = {
-                                        viewModel.setFullscreen(enabled = true)
-                                    },
-                                    onEnterPip = { viewModel.requestPip() },
-                                    onDismiss = { viewModel.dismissMiniPlayer() },
-                                    isBroken = brokenChannelIds.contains(activeCh.id) || activeCh.isOfflineMetadata(),
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                ) {
+                                    MiniPlayerBar(
+                                        channel = activeCh,
+                                        isPlaying = false,
+                                        onTogglePlayPause = {
+                                            if (!isPlaying) viewModel.togglePlayPause()
+                                            viewModel.setFullscreen(enabled = true)
+                                        },
+                                        onExpand = {
+                                            if (!isPlaying) viewModel.togglePlayPause()
+                                            viewModel.setFullscreen(enabled = true)
+                                        },
+                                        onEnterPip = {
+                                            if (!isPlaying) viewModel.togglePlayPause()
+                                            viewModel.requestPip()
+                                        },
+                                        onDismiss = { viewModel.dismissMiniPlayer() },
+                                        isBroken = brokenChannelIds.contains(activeCh.id) || activeCh.isOfflineMetadata(),
+                                    )
+                                }
                             }
 
                             NavigationBar(
                                 containerColor = MaterialTheme.colorScheme.surface,
                                 contentColor = MaterialTheme.colorScheme.primary,
+                                windowInsets = portraitBottomInsets,
                                 modifier = Modifier.testTag("bottom_nav_bar"),
                             ) {
                                 NavigationBarItem(
                                     selected = currentTab == ScreenTab.HOME,
                                     onClick = { viewModel.selectTab(ScreenTab.HOME) },
                                     icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                                    label = { Text(appStrings.liveTab, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    label = {
+                                        Text(
+                                            text = appStrings.liveTab,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (currentTab == ScreenTab.HOME) FontWeight.Bold else FontWeight.Medium,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                    alwaysShowLabel = true,
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                        selectedIconColor = MaterialTheme.colorScheme.primary,
                                         selectedTextColor = MaterialTheme.colorScheme.primary,
                                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        indicatorColor = MaterialTheme.colorScheme.primary,
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                                     ),
                                     modifier = Modifier.testTag("nav_home"),
                                 )
@@ -529,13 +635,23 @@ fun MainNavigationScreen(
                                     selected = currentTab == ScreenTab.FAVORITES,
                                     onClick = { viewModel.selectTab(ScreenTab.FAVORITES) },
                                     icon = { Icon(Icons.Default.Star, contentDescription = "Favorites") },
-                                    label = { Text(appStrings.favoritesTab, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    label = {
+                                        Text(
+                                            text = appStrings.favoritesTab,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (currentTab == ScreenTab.FAVORITES) FontWeight.Bold else FontWeight.Medium,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                    alwaysShowLabel = true,
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                        selectedIconColor = MaterialTheme.colorScheme.primary,
                                         selectedTextColor = MaterialTheme.colorScheme.primary,
                                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        indicatorColor = MaterialTheme.colorScheme.primary,
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                                     ),
                                     modifier = Modifier.testTag("nav_favorites"),
                                 )
@@ -543,13 +659,23 @@ fun MainNavigationScreen(
                                     selected = (currentTab == ScreenTab.SETTINGS) || (currentTab == ScreenTab.PARENTAL),
                                     onClick = { viewModel.selectTab(ScreenTab.SETTINGS) },
                                     icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                                    label = { Text(appStrings.settingsTab, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    label = {
+                                        Text(
+                                            text = appStrings.settingsTab,
+                                            fontSize = 11.sp,
+                                            fontWeight = if ((currentTab == ScreenTab.SETTINGS) || (currentTab == ScreenTab.PARENTAL)) FontWeight.Bold else FontWeight.Medium,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                    alwaysShowLabel = true,
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                        selectedIconColor = MaterialTheme.colorScheme.primary,
                                         selectedTextColor = MaterialTheme.colorScheme.primary,
                                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        indicatorColor = MaterialTheme.colorScheme.primary,
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                                     ),
                                     modifier = Modifier.testTag("nav_settings"),
                                 )

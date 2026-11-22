@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -56,7 +57,7 @@ fun MiniPlayerBar(
 ) {
     val (cardBg, cardBorder, socketBg, socketBorder) = LocalAppThemeColors.current
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
@@ -69,16 +70,22 @@ fun MiniPlayerBar(
             )
             .testTag("mini_player_bar"),
     ) {
+        val isCompact = maxWidth < 400.dp
+        val isUltraCompact = maxWidth < 340.dp
+        val logoSize = if (isCompact) 36.dp else 44.dp
+        val iconBtnSize = if (isCompact) 36.dp else 40.dp
+        val playBtnSize = if (isCompact) 36.dp else 42.dp
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = if (isCompact) 8.dp else 12.dp, vertical = if (isCompact) 5.dp else 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Channel Logo / Thumbnail (matched 10.dp radius)
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(logoSize)
                     .clip(RoundedCornerShape(10.dp))
                     .background(socketBg)
                     .border(1.dp, socketBorder, RoundedCornerShape(10.dp)),
@@ -88,19 +95,19 @@ fun MiniPlayerBar(
                     AsyncImage(
                         model = channel.logoUrl,
                         contentDescription = "${channel.name} logo",
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(if (isCompact) 30.dp else 36.dp),
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.Tv,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(if (isCompact) 20.dp else 24.dp),
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(if (isCompact) 8.dp else 10.dp))
 
             // Channel info
             Column(modifier = Modifier.weight(1f)) {
@@ -147,6 +154,8 @@ fun MiniPlayerBar(
                                 color = statusTextColor,
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false,
                             )
                         }
                     }
@@ -162,28 +171,30 @@ fun MiniPlayerBar(
                 }
             }
 
-            // PiP Button (WCAG >= 48dp touch target)
-            IconButton(
-                onClick = onEnterPip,
-                modifier = Modifier
-                    .size(48.dp)
-                    .testTag("mini_player_pip_button"),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PictureInPictureAlt,
-                    contentDescription = "Picture in Picture",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
+            // PiP Button (shown unless ultra-narrow portrait where PiP is still in fullscreen controls)
+            if (!isUltraCompact) {
+                IconButton(
+                    onClick = onEnterPip,
+                    modifier = Modifier
+                        .size(iconBtnSize)
+                        .testTag("mini_player_pip_button"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PictureInPictureAlt,
+                        contentDescription = "Picture in Picture",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(19.dp),
+                    )
+                }
             }
 
-            // Play / Pause Button (clean circular button, WCAG >= 48dp touch target)
+            // Play / Pause Button
             Surface(
                 onClick = onTogglePlayPause,
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(playBtnSize)
                     .testTag("mini_player_play_pause"),
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -191,16 +202,16 @@ fun MiniPlayerBar(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Pause ${channel.name}" else "Play ${channel.name}",
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(21.dp),
                     )
                 }
             }
 
-            // Expand (WCAG >= 48dp touch target)
+            // Expand
             IconButton(
                 onClick = onExpand,
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(iconBtnSize)
                     .testTag("mini_player_expand"),
             ) {
                 Icon(
@@ -211,11 +222,11 @@ fun MiniPlayerBar(
                 )
             }
 
-            // Close (WCAG >= 48dp touch target)
+            // Close
             IconButton(
                 onClick = onDismiss,
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(iconBtnSize)
                     .testTag("mini_player_close"),
             ) {
                 Icon(

@@ -90,20 +90,6 @@ fun Modifier.tvScreenBezel(
 // =========================================================================
 
 /**
- * Empty no-op composable: screws removed in favor of clean simple UI.
- */
-@Suppress("UNUSED_PARAMETER")
-@Composable
-fun SkeuoScrew(
-    modifier: Modifier = Modifier,
-    size: Dp = 0.dp,
-    rotationDegrees: Float = 0f,
-    isBrass: Boolean = false,
-) {
-    // No-op: clean simple UI without skeuomorphic decorations
-}
-
-/**
  * Simple clean status indicator dot with optional label.
  */
 @Composable
@@ -111,7 +97,7 @@ fun SkeuoJewelLed(
     isActive: Boolean,
     modifier: Modifier = Modifier,
     color: Color = SkeuoRubyLed,
-    label: String? = null,
+    label: String? = "ON AIR",
     size: Dp = 7.dp,
 ) {
     Row(

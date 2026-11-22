@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,8 +15,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Edit
@@ -61,10 +64,6 @@ fun ParentalControlsScreen(
     viewModel: TVViewModel,
     modifier: Modifier = Modifier,
 ) {
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val screenWidthDp = with(density) {
-        androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.width.toDp().value.toInt()
-    }
     val parentalPin by viewModel.profileRepo.parentalPin.collectAsState()
     val lockedChannelIds by viewModel.profileRepo.globallyLockedChannelIds.collectAsState()
     val activityLogs by viewModel.profileRepo.activityLogs.collectAsState()
@@ -90,8 +89,15 @@ fun ParentalControlsScreen(
         }
     }
 
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val columns = when {
+            maxWidth >= 960.dp -> 3
+            maxWidth >= 560.dp -> 2
+            else -> 1
+        }
+
     LazyColumn(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .testTag("parental_screen_column"),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
@@ -164,7 +170,7 @@ fun ParentalControlsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Locked channels require this 4-digit PIN to stream. Kids Mode profiles automatically block 18+ and restricted content.",
+                        text = "Locked channels require your 4-digit PIN. Kids Mode automatically hides 18+ channels.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -206,7 +212,7 @@ fun ParentalControlsScreen(
                 OutlinedTextField(
                     value = channelSearchQuery,
                     onValueChange = { channelSearchQuery = it },
-                    placeholder = { Text("Find channel to lock / unlock...") },
+                    placeholder = { Text("Search channels...") },
                     leadingIcon = {
                         Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     },
@@ -221,13 +227,6 @@ fun ParentalControlsScreen(
                     modifier = Modifier.fillMaxWidth().testTag("lock_channel_search"),
                 )
             }
-        }
-
-        val availableWidthDp = if (screenWidthDp >= 600) screenWidthDp - 80 else screenWidthDp
-        val columns = when {
-            availableWidthDp >= 1150 -> 3
-            availableWidthDp >= 580 -> 2
-            else -> 1
         }
 
         if (columns == 1) {
@@ -273,7 +272,7 @@ fun ParentalControlsScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Account Activity & Usage Log",
+                        text = "Activity Log",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -335,6 +334,7 @@ fun ParentalControlsScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+    }
 
     // Change PIN Dialog
     if (isChangePinDialogVisible) {
@@ -347,7 +347,11 @@ fun ParentalControlsScreen(
                 }
             },
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                ) {
                     Text(
                         text = "Enter a new 4-digit PIN for parental controls and locked channels:",
                         style = MaterialTheme.typography.bodyMedium,

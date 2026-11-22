@@ -288,7 +288,7 @@ fun ProfilesScreen(
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Text(
-                                    text = "Hides mature channels & blocks 18+ content without PIN",
+                                    text = "Hides 18+ and mature channels",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -356,7 +356,7 @@ fun ProfilesScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "No watch history for ${current.name} yet.\nStart streaming channels to see history here.",
+                            text = "No watch history yet.",
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium,

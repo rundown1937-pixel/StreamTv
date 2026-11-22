@@ -54,10 +54,6 @@ val SlateAppThemeColors = AppThemeColors(
 
 val LocalAppThemeColors = staticCompositionLocalOf { SlateAppThemeColors }
 
-val CoralRed = Color(0xFFEF4444)
-val AmberPending = Color(0xFFF59E0B)
-val BlueScanning = Color(0xFF3B82F6)
-
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFE0E0E0),
     onPrimary = Color(0xFF121212),

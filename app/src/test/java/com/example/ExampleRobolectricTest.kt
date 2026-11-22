@@ -640,7 +640,7 @@ class ExampleRobolectricTest {
     val vm = com.example.ui.viewmodel.TVViewModel(app)
 
     // Verify major worldwide regions are represented
-    val regionCodes = vm.availableRegions.map { it.code }
+    val regionCodes = vm.availableRegions.map { (code) -> code }
     assertTrue(regionCodes.contains("US"))
     assertTrue(regionCodes.contains("UK"))
     assertTrue(regionCodes.contains("IN"))
@@ -685,8 +685,12 @@ class ExampleRobolectricTest {
       assertEquals(lang, vm.appInterfaceLanguage.value)
       val strings = com.example.util.getStringsForLanguage(lang.code)
       assertNotNull(strings.appName)
-      assertNotNull(strings.liveTab)
-      assertNotNull(strings.channelsTab)
+      assertTrue(strings.liveTab.isNotEmpty())
+      assertTrue(strings.favoritesTab.isNotEmpty())
+      assertTrue(strings.channelsTab.isNotEmpty())
+      assertTrue(strings.settingsTab.isNotEmpty())
+      assertTrue(strings.allChannels.isNotEmpty())
+      assertTrue(strings.clearCache.isNotEmpty())
       assertTrue(strings.languageSelectorTitle.isNotEmpty())
     }
 
@@ -725,7 +729,7 @@ class ExampleRobolectricTest {
 
   @Test
   fun `bundled channels have accurate country and language detection from group-title and tvg-id`() {
-    val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+    val context = ApplicationProvider.getApplicationContext<Context>()
     val playlistRepo = PlaylistRepository(context)
     val channels = playlistRepo.loadBundledChannels()
     assertTrue(channels.isNotEmpty())
@@ -739,7 +743,7 @@ class ExampleRobolectricTest {
     assertEquals("Persian", amc?.language)
 
     // Verify genres are mapped from keywords and not all default to General
-    val genres = channels.map { it.genre }.toSet()
+    val genres = channels.asSequence().map { it.genre }.toSet()
     assertTrue("Should map to multiple genres, found ${genres.size}", genres.size >= 5)
   }
 

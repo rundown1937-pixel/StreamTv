@@ -35,19 +35,19 @@
 # Preserve Data Models serialized via JSON / Room / State
 -keep class com.example.data.model.** { *; }
 
-# Media3 / ExoPlayer keep rules and warning suppression
--keep class androidx.media3.common.** { *; }
--keep class androidx.media3.exoplayer.** { *; }
--keep class androidx.media3.datasource.** { *; }
+# Media3 / ExoPlayer & NextLib FFmpeg decoder rules
 -dontwarn androidx.media3.**
+-dontwarn io.github.anilbeesetti.nextlib.**
+-keep class io.github.anilbeesetti.nextlib.media3ext.ffdecoder.** { *; }
 
-# Google Mobile Ads (AdMob)
--keep public class com.google.android.gms.ads.** {
-    public *;
-}
+# Google Mobile Ads (AdMob) warning suppression (consumer rules are provided by AARs)
 -dontwarn com.google.android.gms.ads.**
 
-# Coil Image Loader
--keep class coil3.** { *; }
+# Coil Image Loader warning suppression (consumer rules are provided by AARs)
 -dontwarn coil3.**
+
+# Additional size reduction: rename source file attributes in release builds
+-renamesourcefileattribute SourceFile
+
+
 

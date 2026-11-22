@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -67,7 +68,7 @@ fun ChannelCard(
     val statusTextColor = if (isEffectivelyOffline) appColors.statusOfflineText else appColors.statusLiveText
     val statusText = if (isEffectivelyOffline) "OFFLINE" else if (isSelected) "STREAMING" else "LIVE"
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
@@ -87,22 +88,27 @@ fun ChannelCard(
             }
             .testTag("channel_card_${channel.id}"),
     ) {
+        val isCompact = maxWidth < 360.dp
+        val isVeryCompact = maxWidth < 305.dp
+        val logoContainerSize = if (isCompact) 44.dp else 52.dp
+        val favButtonSize = if (isCompact) 40.dp else 48.dp
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(if (isCompact) 10.dp else 12.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Channel Logo / Icon Container (flattened, matched 12.dp corner radius)
+                // Channel Logo / Icon Container
                 Box(
                     modifier = Modifier
-                        .size(52.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(logoContainerSize)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(socketBg)
-                        .border(1.dp, socketBorder, RoundedCornerShape(12.dp)),
+                        .border(1.dp, socketBorder, RoundedCornerShape(10.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (!channel.logoUrl.isNullOrEmpty()) {
@@ -111,15 +117,15 @@ fun ChannelCard(
                             contentDescription = "${channel.name} logo",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
-                                .size(42.dp)
-                                .padding(4.dp),
+                                .size(if (isCompact) 36.dp else 42.dp)
+                                .padding(3.dp),
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.Tv,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(26.dp),
+                            modifier = Modifier.size(if (isCompact) 22.dp else 26.dp),
                         )
                     }
 
@@ -134,7 +140,7 @@ fun ChannelCard(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = "Locked Channel",
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(18.dp),
                             )
                         }
                     }
@@ -150,7 +156,7 @@ fun ChannelCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(if (isCompact) 10.dp else 12.dp))
 
                 // Channel Details
                 Column(
@@ -161,7 +167,7 @@ fun ChannelCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = channel.name,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = if (isCompact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -170,12 +176,12 @@ fun ChannelCard(
                         )
 
                         if (channel.isLocked) {
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = "PIN Protected",
                                 tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(16.dp),
+                                modifier = Modifier.size(15.dp),
                             )
                         }
                     }
@@ -184,10 +190,10 @@ fun ChannelCard(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(if (isCompact) 4.dp else 6.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        // Live / Offline Status Badge (Strictly necessary status colors)
+                        // Live / Offline Status Badge
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = statusBgColor,
@@ -199,8 +205,8 @@ fun ChannelCard(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -211,16 +217,16 @@ fun ChannelCard(
                                 Text(
                                     text = statusText,
                                     color = statusTextColor,
-                                    fontSize = 10.sp,
+                                    fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
-                                    letterSpacing = 0.5.sp,
+                                    letterSpacing = 0.4.sp,
                                     maxLines = 1,
                                     softWrap = false,
                                 )
                             }
                         }
 
-                        // Genre badge (bounded with weight to prevent vertical character stacking)
+                        // Genre badge
                         if (channel.genre.isNotBlank()) {
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
@@ -230,18 +236,18 @@ fun ChannelCard(
                                 Text(
                                     text = channel.genre,
                                     color = MaterialTheme.colorScheme.primary,
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                     softWrap = false,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                 )
                             }
                         }
 
-                        // Resolution badge (matched 8.dp radius)
-                        if (channel.resolution.isNotBlank()) {
+                        // Resolution badge (hidden on tight narrow cards to avoid crushing genre/title)
+                        if (!isCompact && channel.resolution.isNotBlank()) {
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -249,7 +255,7 @@ fun ChannelCard(
                                 Text(
                                     text = channel.resolution,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
                                     maxLines = 1,
                                     softWrap = false,
                                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
@@ -258,11 +264,11 @@ fun ChannelCard(
                         }
 
                         // Country tag
-                        if (channel.country.isNotEmpty() && (channel.country != "GLOBAL")) {
+                        if (!isVeryCompact && channel.country.isNotEmpty() && (channel.country != "GLOBAL")) {
                             Text(
                                 text = channel.country,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp,
+                                fontSize = 10.sp,
                                 maxLines = 1,
                                 softWrap = false,
                             )
@@ -270,7 +276,7 @@ fun ChannelCard(
                     }
                 }
 
-                // Direct Play Button (matched 10.dp radius, WCAG >= 48dp touch target)
+                // Direct Play Button
                 Surface(
                     onClick = onSelect,
                     shape = RoundedCornerShape(10.dp),
@@ -281,31 +287,36 @@ fun ChannelCard(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(
+                            horizontal = if (isVeryCompact) 6.dp else if (isCompact) 7.dp else 8.dp,
+                            vertical = 6.dp,
+                        ),
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
+                            contentDescription = if (isSelected) "Playing ${channel.name}" else "Play ${channel.name}",
                             tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(16.dp),
                         )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = if (isSelected) "Playing" else "Play",
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            softWrap = false,
-                        )
+                        if (!isVeryCompact) {
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = if (isSelected) "Playing" else "Play",
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                        }
                     }
                 }
 
-                // Favorite button (WCAG >= 48dp touch target)
+                // Favorite button
                 IconButton(
                     onClick = onToggleFavorite,
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(favButtonSize)
                         .testTag("fav_button_${channel.id}"),
                 ) {
                     Icon(

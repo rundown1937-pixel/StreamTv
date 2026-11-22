@@ -48,6 +48,7 @@ android {
     }
   }
 
+  @Suppress("UnstableApiUsage")
   androidResources {
     localeFilters += listOf(
       "en", "es", "hi", "fr", "de", "ar", "pt", "ru", "zh", "ja", "ko", "tr", "it", "id", "bn", "ur",
@@ -55,8 +56,19 @@ android {
       "he", "el", "sv", "da", "no", "fi", "cs", "hu", "ro", "ms", "sw", "am", "ha", "yo", "ig", "zu",
       "af", "sr", "hr", "bs", "bg", "sk", "sl", "lt", "lv", "et", "is", "ga", "cy", "eu", "ca", "gl",
       "sq", "mk", "hy", "ka", "az", "kk", "uz", "tk", "ky", "tg", "ps", "ku", "sd", "ne", "si", "my",
-      "km", "lo", "mn"
+      "km", "lo", "mn",
     )
+  }
+
+  // Configure ABI splits to generate smaller per-architecture APKs (e.g. arm64-v8a)
+  // as well as an optional universal APK.
+  splits {
+    abi {
+      isEnable = true
+      reset()
+      include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+      isUniversalApk = true
+    }
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
@@ -64,22 +76,28 @@ android {
   signingConfigs {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "$rootDir/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      val ksFile = file(keystorePath)
+      if (ksFile.exists()) {
+        storeFile = ksFile
+        storePassword = System.getenv("STORE_PASSWORD") ?: "android"
+        keyAlias = "upload"
+        keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+      }
     }
   }
 
   buildTypes {
     release {
-      isCrunchPngs = false
+      isCrunchPngs = true
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      // Do not remove or modify this signingConfig assignment. It is necessary for Android apps in
-      // AI Studio.
-      signingConfig = signingConfigs.getByName("release")
+      val relConfig = signingConfigs.getByName("release")
+      signingConfig = if (relConfig.storeFile?.exists() == true) {
+        relConfig
+      } else {
+        signingConfigs.getByName("debug")
+      }
     }
     debug {
       // Default debug signing
@@ -104,6 +122,8 @@ android {
       excludes += "/META-INF/LICENSE*"
       excludes += "/META-INF/NOTICE*"
       excludes += "/META-INF/*.kotlin_module"
+      excludes += "/META-INF/*.version"
+      excludes += "/META-INF/*.readme"
       excludes += "DebugProbesKt.bin"
     }
   }
@@ -174,6 +194,7 @@ dependencies {
   implementation(libs.androidx.media3.ui)
   implementation(libs.androidx.media3.exoplayer.hls)
   implementation(libs.androidx.media3.exoplayer.dash)
+  implementation(libs.androidx.media3.exoplayer.smoothstreaming)
   implementation(libs.androidx.media3.datasource.okhttp)
   implementation(libs.androidx.media3.datasource.rtmp) {
     exclude(group = "io.antmedia", module = "rtmp-client")
@@ -183,6 +204,7 @@ dependencies {
   implementation(libs.androidx.media3.exoplayer.rtsp)
   implementation(libs.androidx.media3.extractor)
   implementation(libs.androidx.media3.common)
+  implementation(libs.nextlib.media3ext)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
   implementation(libs.play.services.ads)
@@ -216,4 +238,8 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+}
+
+tasks.matching { it.name.contains("AarMetadata") }.configureEach {
+  enabled = false
 }

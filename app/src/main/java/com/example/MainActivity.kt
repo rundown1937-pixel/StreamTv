@@ -8,6 +8,7 @@ import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -27,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -49,6 +51,13 @@ class MainActivity : FragmentActivity() {
 
     private val viewModel: TVViewModel by viewModels()
     private var localNetworkPermissionDialog: AlertDialog? = null
+    private var isCurrentThemeLight: Boolean = false
+    private val reapplyInsetsRunnable = Runnable {
+        if (!isDestroyed && !isFinishing) {
+            applySystemBars(viewModel.isFullscreen.value)
+            ViewCompat.requestApplyInsets(window.decorView)
+        }
+    }
 
     private val localNetworkPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -70,11 +79,11 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        volumeControlStream = AudioManager.STREAM_MUSIC
 
         // Defer non-critical analytics and ads off the UI thread and critical startup frame path
         val appContext = applicationContext
@@ -108,13 +117,24 @@ class MainActivity : FragmentActivity() {
 
         setContent {
             val themeMode by viewModel.appThemeMode.collectAsState()
+            val isFullscreen by viewModel.isFullscreen.collectAsState()
             val isLightTheme = themeMode == com.example.ui.theme.AppThemeMode.WHITE
-            val insetsController = androidx.compose.runtime.remember(window) {
-                WindowCompat.getInsetsController(window, window.decorView)
-            }
-            androidx.compose.runtime.SideEffect {
-                insetsController.isAppearanceLightStatusBars = isLightTheme
-                insetsController.isAppearanceLightNavigationBars = isLightTheme
+            androidx.compose.runtime.LaunchedEffect(isLightTheme, isFullscreen) {
+                isCurrentThemeLight = isLightTheme
+                val useLightBars = isLightTheme && !isFullscreen
+                val barStyle = if (useLightBars) {
+                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                } else {
+                    SystemBarStyle.dark(Color.TRANSPARENT)
+                }
+                enableEdgeToEdge(
+                    statusBarStyle = barStyle,
+                    navigationBarStyle = barStyle,
+                )
+                applySystemBars(isFullscreen)
+                if (!isFullscreen) {
+                    scheduleFreshWindowInsets()
+                }
             }
 
             MyApplicationTheme(themeMode = themeMode) {
@@ -141,17 +161,43 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun updateFullscreenOrientation(fullscreen: Boolean) {
+    private fun applySystemBars(fullscreen: Boolean) {
         val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
         if (fullscreen) {
-            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             windowInsetsController.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            windowInsetsController.isAppearanceLightStatusBars = false
+            windowInsetsController.isAppearanceLightNavigationBars = false
             windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            windowInsetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+            windowInsetsController.isAppearanceLightStatusBars = isCurrentThemeLight
+            windowInsetsController.isAppearanceLightNavigationBars = isCurrentThemeLight
+            windowInsetsController.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    private fun scheduleFreshWindowInsets() {
+        val decor = window.decorView
+        decor.removeCallbacks(reapplyInsetsRunnable)
+        ViewCompat.requestApplyInsets(decor)
+        decor.post(reapplyInsetsRunnable)
+        decor.postDelayed(reapplyInsetsRunnable, 150L)
+        decor.postDelayed(reapplyInsetsRunnable, 350L)
+    }
+
+    private fun updateFullscreenOrientation(fullscreen: Boolean) {
+        if (fullscreen) {
+            // Open channels directly in landscape (supports both normal & reverse landscape)
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            applySystemBars(fullscreen = true)
             window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
+            // Allow full vertical & horizontal orientation across all browse screens
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            windowInsetsController.show(WindowInsetsCompat.Type.systemBars())
+            applySystemBars(fullscreen = false)
+            scheduleFreshWindowInsets()
             // Only clear keep-screen-on if not playing
             if (!viewModel.isPlaying.value) {
                 window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -159,15 +205,30 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    fun toggleScreenOrientation() {
+        requestedOrientation = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
+        scheduleFreshWindowInsets()
+    }
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
-        if (viewModel.isFullscreen.value) {
-            windowInsetsController.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
-        } else {
-            windowInsetsController.show(WindowInsetsCompat.Type.systemBars())
+        val fullscreen = viewModel.isFullscreen.value
+        applySystemBars(fullscreen)
+        scheduleFreshWindowInsets()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            val fullscreen = viewModel.isFullscreen.value
+            applySystemBars(fullscreen)
+            if (!fullscreen) {
+                ViewCompat.requestApplyInsets(window.decorView)
+            }
         }
     }
 
@@ -278,6 +339,7 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onDestroy() {
+        window.decorView.removeCallbacks(reapplyInsetsRunnable)
         localNetworkPermissionDialog?.dismiss()
         localNetworkPermissionDialog = null
         super.onDestroy()

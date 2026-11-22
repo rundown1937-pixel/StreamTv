@@ -69,10 +69,10 @@ enum class AspectRatioMode(val label: String) {
 }
 
 enum class PlaybackQuality(val label: String, val bitRateLimitDesc: String) {
-    AUTO("Auto Adaptive", "Dynamic resolution"),
-    HIGH("1080p FHD", "High bitrate"),
-    DATA_SAVER("Low Bandwidth Eco", "Saves 70% mobile data"),
-    AUDIO_ONLY("Audio Only Mode", "Saves 95% data for commuting"),
+    AUTO("Auto (Adaptive Bitrate)", "Default • Automatically adjusts resolution to match network speed"),
+    HIGH("High Quality (1080p HD)", "Prefers highest available resolution"),
+    DATA_SAVER("Data Saver (480p)", "Limits stream quality to save mobile data"),
+    AUDIO_ONLY("Audio Only Mode", "Mutes video and plays background audio only"),
 }
 
 enum class ChannelSortOrder(val label: String) {
@@ -85,18 +85,6 @@ class TVViewModel(private val app: Application) : AndroidViewModel(app) {
     val playlistRepo = PlaylistRepository(app)
     val profileRepo = ProfileRepository(app)
     val historyAndOfflineRepo = HistoryAndOfflineRepository(app)
-
-    val scannedChannelCount = playlistRepo.scannedChannelCount
-    val activeChannelCount = playlistRepo.activeChannelCount
-    val inactiveChannelCount = playlistRepo.inactiveChannelCount
-    val isScanComplete = playlistRepo.isScanComplete
-    val scanEtaSeconds = playlistRepo.scanEtaSeconds
-
-    fun startChannelScan() {
-        viewModelScope.launch {
-            playlistRepo.verifyAllChannels()
-        }
-    }
 
     private val _localNetworkPermissionRequested = MutableStateFlow(value = false)
     val localNetworkPermissionRequested: StateFlow<Boolean> = _localNetworkPermissionRequested.asStateFlow()
@@ -365,7 +353,7 @@ class TVViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private val _selectedSubtitleLanguage = MutableStateFlow("English [CC]")
+    private val _selectedSubtitleLanguage = MutableStateFlow("English")
     val selectedSubtitleLanguage: StateFlow<String> = _selectedSubtitleLanguage.asStateFlow()
 
     private val _selectedAudioTrack = MutableStateFlow("Original Audio (Stereo)")
