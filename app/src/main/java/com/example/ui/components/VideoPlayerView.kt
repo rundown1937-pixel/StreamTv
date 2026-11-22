@@ -6,24 +6,22 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.IntentFilter
-import android.graphics.Rect
 import android.media.AudioManager
 import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Handler
 import android.util.Log
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -110,7 +108,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -394,6 +391,80 @@ private data class PlayerVideoTrackOption(
     val label: String,
     val isSelected: Boolean,
 )
+
+@OptIn(UnstableApi::class)
+private fun extractVideoTracks(exoPlayer: ExoPlayer): List<PlayerVideoTrackOption> {
+    val tracks = exoPlayer.currentTracks
+    val collectedVideo = mutableListOf<PlayerVideoTrackOption>()
+    val seenVideoKeys = mutableSetOf<String>()
+
+    tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }.forEach { group ->
+        for (i in 0 until group.length) {
+            val fmt = group.getTrackFormat(i)
+            val selected = group.isTrackSelected(i)
+            val isSupported = group.getTrackSupport(i) != C.FORMAT_UNSUPPORTED_TYPE
+
+            val calcWidth = if (fmt.width > 0) fmt.width else 0
+            var calcHeight = if (fmt.height > 0) fmt.height else 0
+            if (calcHeight <= 0 && calcWidth > 0) {
+                calcHeight = when {
+                    calcWidth >= 3840 -> 2160
+                    calcWidth >= 2560 -> 1440
+                    calcWidth >= 1920 -> 1080
+                    calcWidth >= 1280 -> 720
+                    calcWidth >= 854 -> 480
+                    calcWidth >= 640 -> 360
+                    calcWidth >= 426 -> 240
+                    else -> (calcWidth * 9) / 16
+                }
+            }
+
+            if (isSupported && (calcHeight > 0 || calcWidth > 0 || fmt.bitrate > 0)) {
+                val resName = when {
+                    calcHeight >= 2160 -> "2160p 4K Ultra HD"
+                    calcHeight >= 1440 -> "1440p 2K QHD"
+                    calcHeight >= 1080 -> "1080p Full HD"
+                    calcHeight >= 720 -> "720p HD"
+                    calcHeight >= 576 -> "576p SD"
+                    calcHeight >= 480 -> "480p SD"
+                    calcHeight >= 360 -> "360p"
+                    calcHeight >= 240 -> "240p"
+                    calcHeight >= 144 -> "144p"
+                    calcHeight > 0 -> "${calcHeight}p"
+                    calcWidth > 0 -> "${calcWidth}p"
+                    else -> "Video Track ${i + 1}"
+                }
+                val dimenStr = if (calcWidth > 0 && calcHeight > 0) "${calcWidth}x${calcHeight}" else ""
+                val bitrateLabel = when {
+                    fmt.bitrate >= 1_000_000 -> String.format(Locale.US, "%.1f Mbps", fmt.bitrate / 1_000_000f)
+                    fmt.bitrate > 0 -> "${fmt.bitrate / 1000} kbps"
+                    else -> ""
+                }
+                val fpsLabel = if (fmt.frameRate > 0f) "${fmt.frameRate.roundToInt()}fps" else ""
+                val details = listOf(dimenStr, bitrateLabel, fpsLabel).filter(String::isNotBlank).joinToString(" • ")
+                val fullLabel = if (details.isNotBlank()) "$resName ($details)" else resName
+
+                val uniqueKey = "${calcHeight}_${fmt.bitrate}"
+                if (seenVideoKeys.add(uniqueKey)) {
+                    collectedVideo.add(
+                        PlayerVideoTrackOption(
+                            group = group,
+                            trackIndex = i,
+                            width = calcWidth,
+                            height = calcHeight,
+                            bitrate = fmt.bitrate,
+                            label = fullLabel,
+                            isSelected = selected,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+    return collectedVideo.sortedWith(
+        compareByDescending<PlayerVideoTrackOption> { it.height }.thenByDescending { it.bitrate },
+    )
+}
 
 private fun formatAudioCodecName(mimeType: String?): String = when (mimeType) {
     MimeTypes.AUDIO_AAC -> "AAC"
@@ -793,6 +864,11 @@ fun VideoPlayerView(
                     val dur = exoPlayer.duration
                     durationMs = if (dur > 0L) dur else 0L
                     onPlaybackStatusChanged?.invoke(true)
+
+                    val freshVideoTracks = extractVideoTracks(exoPlayer)
+                    if (freshVideoTracks.isNotEmpty()) {
+                        availableVideoTracks = freshVideoTracks
+                    }
                 }
             }
 
@@ -809,65 +885,7 @@ fun VideoPlayerView(
             }
 
             override fun onTracksChanged(tracks: Tracks) {
-                val collectedVideo = mutableListOf<PlayerVideoTrackOption>()
-                val seenVideoKeys = mutableSetOf<String>()
-                tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }.forEach { group ->
-                    for (i in 0 until group.length) {
-                        val fmt = group.getTrackFormat(i)
-                        val selected = group.isTrackSelected(i)
-                        val isSupported = group.getTrackSupport(i) != C.FORMAT_UNSUPPORTED_TYPE
-                        Log.d(
-                            "VideoPlayerView",
-                            "Video track[$i]: mime=${fmt.sampleMimeType} ${fmt.width}x${fmt.height} bitrate=${fmt.bitrate} fps=${fmt.frameRate} selected=$selected trackSupport=${group.getTrackSupport(i)}",
-                        )
-                        if (selected && (fmt.height > 0)) {
-                            activeVideoHeight = fmt.height
-                        }
-                        if (isSupported) {
-                            val resName = when {
-                                fmt.height >= 2160 -> "2160p 4K Ultra HD"
-                                fmt.height >= 1440 -> "1440p 2K QHD"
-                                fmt.height >= 1080 -> "1080p Full HD"
-                                fmt.height >= 720 -> "720p HD"
-                                fmt.height >= 576 -> "576p SD"
-                                fmt.height >= 480 -> "480p SD"
-                                fmt.height >= 360 -> "360p"
-                                fmt.height >= 240 -> "240p"
-                                fmt.height >= 144 -> "144p"
-                                fmt.height > 0 -> "${fmt.height}p"
-                                fmt.width > 0 -> "${fmt.width}p"
-                                else -> "Video Track ${i + 1}"
-                            }
-                            val dimenStr = if (fmt.width > 0 && fmt.height > 0) "${fmt.width}x${fmt.height}" else ""
-                            val bitrateLabel = when {
-                                fmt.bitrate >= 1_000_000 -> String.format(Locale.US, "%.1f Mbps", fmt.bitrate / 1_000_000f)
-                                fmt.bitrate > 0 -> "${fmt.bitrate / 1000} kbps"
-                                else -> ""
-                            }
-                            val fpsLabel = if (fmt.frameRate > 0f) "${fmt.frameRate.roundToInt()}fps" else ""
-                            val details = listOf(dimenStr, bitrateLabel, fpsLabel).filter(String::isNotBlank).joinToString(" • ")
-                            val fullLabel = if (details.isNotBlank()) "$resName ($details)" else resName
-
-                            val uniqueKey = "${fmt.width}x${fmt.height}_${fmt.bitrate}_$i"
-                            if (seenVideoKeys.add(uniqueKey)) {
-                                collectedVideo.add(
-                                    PlayerVideoTrackOption(
-                                        group = group,
-                                        trackIndex = i,
-                                        width = fmt.width,
-                                        height = fmt.height,
-                                        bitrate = fmt.bitrate,
-                                        label = fullLabel,
-                                        isSelected = selected,
-                                    ),
-                                )
-                            }
-                        }
-                    }
-                }
-                availableVideoTracks = collectedVideo.sortedWith(
-                    compareByDescending<PlayerVideoTrackOption> { it.height }.thenByDescending { it.bitrate },
-                )
+                availableVideoTracks = extractVideoTracks(exoPlayer)
 
                 val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
                 if (audioGroups.isEmpty()) {
@@ -1270,7 +1288,21 @@ fun VideoPlayerView(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clipToBounds(),
+                        .clipToBounds()
+                        .graphicsLayer {
+                            val w = size.width
+                            val h = size.height
+                            val maxPanX = if (w > 0f) (w * (videoZoomScale - 1f)) / 2f else 0f
+                            val maxPanY = if (h > 0f) (h * (videoZoomScale - 1f)) / 2f else 0f
+                            val clampedTx = if (videoZoomScale <= 1f) 0f else videoPanOffset.x.coerceIn(-maxPanX, maxPanX)
+                            val clampedTy = if (videoZoomScale <= 1f) 0f else videoPanOffset.y.coerceIn(-maxPanY, maxPanY)
+
+                            scaleX = videoZoomScale
+                            scaleY = videoZoomScale
+                            translationX = clampedTx
+                            translationY = clampedTy
+                            clip = true
+                        },
                 ) {
                     AndroidView(
                         factory = { ctx ->
@@ -1313,47 +1345,6 @@ fun VideoPlayerView(
                                 playerView.resizeMode = targetResizeMode
                                 playerView.requestLayout()
                             }
-                            // Apply native View zoom/pan directly on the SurfaceView-backed PlayerView
-                            // with exact hardware SurfaceFlinger clipBounds so zoomed video stays sharp and cropped
-                            val w = container.width
-                            val h = container.height
-                            val maxPanX = if (w > 0) (w * (videoZoomScale - 1f)) / 2f else 0f
-                            val maxPanY = if (h > 0) (h * (videoZoomScale - 1f)) / 2f else 0f
-                            val clampedTx = if (videoZoomScale <= 1f) 0f else videoPanOffset.x.coerceIn(-maxPanX, maxPanX)
-                            val clampedTy = if (videoZoomScale <= 1f) 0f else videoPanOffset.y.coerceIn(-maxPanY, maxPanY)
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                                playerView.resetPivot()
-                            } else {
-                                playerView.pivotX = playerView.width / 2f
-                                playerView.pivotY = playerView.height / 2f
-                            }
-                            playerView.scaleX = videoZoomScale
-                            playerView.scaleY = videoZoomScale
-                            playerView.translationX = clampedTx
-                            playerView.translationY = clampedTy
-
-                            val surfaceView = playerView.videoSurfaceView
-                            if (surfaceView != null) {
-                                if ((videoZoomScale > 1.001f) && (w > 0) && (h > 0) && (surfaceView.width > 0) && (surfaceView.height > 0)) {
-                                    var ox = 0f
-                                    var oy = 0f
-                                    var cur: View? = surfaceView
-                                    while ((cur != null) && (cur !== playerView)) {
-                                        ox += cur.left
-                                        oy += cur.top
-                                        cur = cur.parent as? View
-                                    }
-                                    val halfW = w / 2f
-                                    val halfH = h / 2f
-                                    val left = (((-halfW - clampedTx) / videoZoomScale) + halfW - ox).toInt().coerceIn(0, surfaceView.width)
-                                    val top = (((-halfH - clampedTy) / videoZoomScale) + halfH - oy).toInt().coerceIn(0, surfaceView.height)
-                                    val right = (((halfW - clampedTx) / videoZoomScale) + halfW - ox).toInt().coerceIn(left, surfaceView.width)
-                                    val bottom = (((halfH - clampedTy) / videoZoomScale) + halfH - oy).toInt().coerceIn(top, surfaceView.height)
-                                    surfaceView.clipBounds = Rect(left, top, right, bottom)
-                                } else if (surfaceView.clipBounds != null) {
-                                    surfaceView.clipBounds = null
-                                }
-                            }
                         },
                         onRelease = { container ->
                             (container.getChildAt(0) as? PlayerView)?.player = null
@@ -1370,37 +1361,25 @@ fun VideoPlayerView(
                         .fillMaxSize()
                         .pointerInput(isScreenLocked) {
                             if (!isScreenLocked) {
-                                awaitEachGesture {
-                                    var didPinch = false
-                                    do {
-                                        val event = awaitPointerEvent()
-                                        val pressedCount = event.changes.count { it.pressed }
-                                        if (pressedCount >= 2) {
-                                            val zoomChange = event.calculateZoom()
-                                            val panChange = event.calculatePan()
-                                            if (abs(zoomChange - 1f) > 0.005f || panChange != Offset.Zero) {
-                                                didPinch = true
-                                                val newScale = (videoZoomScale * zoomChange).coerceIn(1f, 4f)
-                                                val snappedScale = if (newScale <= 1.02f) 1f else newScale
-                                                videoZoomScale = snappedScale
-                                                if (snappedScale <= 1f) {
-                                                    videoPanOffset = Offset.Zero
-                                                } else {
-                                                    val maxPanX = (size.width * (snappedScale - 1f)) / 2f
-                                                    val maxPanY = (size.height * (snappedScale - 1f)) / 2f
-                                                    videoPanOffset = Offset(
-                                                        x = (videoPanOffset.x + panChange.x).coerceIn(-maxPanX, maxPanX),
-                                                        y = (videoPanOffset.y + panChange.y).coerceIn(-maxPanY, maxPanY),
-                                                    )
-                                                }
-                                                zoomHudPercentage = (snappedScale * 100f).roundToInt()
-                                            }
-                                            event.changes.forEach { it.consume() }
-                                        } else if (didPinch && pressedCount == 1) {
-                                            // Consume remaining lift motion after a two-finger pinch so it doesn't trigger a stray tap/swipe
-                                            event.changes.forEach { it.consume() }
+                                detectTransformGestures(panZoomLock = false) { _, pan, zoom, _ ->
+                                    if (abs(zoom - 1f) > 0.001f || (videoZoomScale > 1f && pan != Offset.Zero)) {
+                                        val newScale = (videoZoomScale * zoom).coerceIn(1.0f, 4.0f)
+                                        val snappedScale = if (newScale <= 1.02f) 1.0f else newScale
+                                        videoZoomScale = snappedScale
+                                        if (snappedScale <= 1.0f) {
+                                            videoPanOffset = Offset.Zero
+                                        } else {
+                                            val containerWidth = size.width.toFloat()
+                                            val containerHeight = size.height.toFloat()
+                                            val maxPanX = (containerWidth * (snappedScale - 1f)) / 2f
+                                            val maxPanY = (containerHeight * (snappedScale - 1f)) / 2f
+                                            videoPanOffset = Offset(
+                                                x = (videoPanOffset.x + pan.x).coerceIn(-maxPanX, maxPanX),
+                                                y = (videoPanOffset.y + pan.y).coerceIn(-maxPanY, maxPanY),
+                                            )
                                         }
-                                    } while (event.changes.any { it.pressed })
+                                        zoomHudPercentage = (snappedScale * 100f).roundToInt()
+                                    }
                                 }
                             }
                         }
@@ -2723,6 +2702,12 @@ fun VideoPlayerView(
 
             // 11. Quality & Bitrate Picker Dialog (Adaptive Modes + Live Stream Resolutions)
             if (showQualityDialog) {
+                LaunchedEffect(exoPlayer) {
+                    val freshVideoTracks = extractVideoTracks(exoPlayer)
+                    if (freshVideoTracks.isNotEmpty()) {
+                        availableVideoTracks = freshVideoTracks
+                    }
+                }
                 val currentPlayingHeight = exoPlayer.videoFormat?.height?.takeIf { it > 0 } ?: activeVideoHeight
                 AlertDialog(
                     onDismissRequest = { showQualityDialog = false },
